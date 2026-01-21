@@ -1,7 +1,7 @@
-const User = require('../models/User');
-const Role = require('../models/Role');
-const { logUserAction } = require('../utils/auditLogger');
-const { sanitizeInput } = require('../utils/validation');
+const User = require("../../models/User");
+const Role = require("../../models/Role");
+const { logUserAction } = require("../../utils/auditLogger");
+const { sanitizeInput } = require("../../utils/validation");
 
 /**
  * User Controller
@@ -28,9 +28,9 @@ const getAllUsers = async (req, res) => {
 
     if (search) {
       query.$or = [
-        { email: { $regex: search, $options: 'i' } },
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: "i" } },
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -42,13 +42,13 @@ const getAllUsers = async (req, res) => {
     }
 
     if (isActive !== undefined) {
-      query.isActive = isActive === 'true';
+      query.isActive = isActive === "true";
     }
 
     // Execute query with pagination
     const users = await User.find(query)
-      .populate('role', 'name')
-      .select('-password -mfaSecret')
+      .populate("role", "name")
+      .select("-password -mfaSecret")
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .sort({ createdAt: -1 });
@@ -65,10 +65,10 @@ const getAllUsers = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get all users error:', error);
+    console.error("Get all users error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get users',
+      message: "Failed to get users",
       error: error.message,
     });
   }
@@ -82,13 +82,13 @@ const getAllUsers = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
-      .populate('role', 'name permissions')
-      .select('-password -mfaSecret');
+      .populate("role", "name permissions")
+      .select("-password -mfaSecret");
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -97,10 +97,10 @@ const getUserById = async (req, res) => {
       data: { user },
     });
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error("Get user error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get user',
+      message: "Failed to get user",
       error: error.message,
     });
   }
@@ -118,17 +118,17 @@ const updateUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
     // Security: Only allow updating specific fields
-    const allowedFields = ['firstName', 'lastName', 'phone', 'address'];
+    const allowedFields = ["firstName", "lastName", "phone", "address"];
     const updates = sanitizeInput(req.body, allowedFields);
 
     // Track changes for audit log
     const changes = {};
-    Object.keys(updates).forEach(key => {
+    Object.keys(updates).forEach((key) => {
       if (JSON.stringify(user[key]) !== JSON.stringify(updates[key])) {
         changes[key] = {
           old: user[key],
@@ -138,35 +138,35 @@ const updateUser = async (req, res) => {
     });
 
     // Apply updates
-    Object.keys(updates).forEach(key => {
+    Object.keys(updates).forEach((key) => {
       user[key] = updates[key];
     });
 
     await user.save();
 
-    await logUserAction('profile_updated', {
+    await logUserAction("profile_updated", {
       userId: req.user._id,
       email: req.user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req.get("user-agent"),
       resourceId: user._id,
       metadata: { changes },
     });
 
     const updatedUser = await User.findById(user._id)
-      .populate('role')
-      .select('-password -mfaSecret');
+      .populate("role")
+      .select("-password -mfaSecret");
 
     res.status(200).json({
       success: true,
-      message: 'User updated successfully',
+      message: "User updated successfully",
       data: { user: updatedUser },
     });
   } catch (error) {
-    console.error('Update user error:', error);
+    console.error("Update user error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update user',
+      message: "Failed to update user",
       error: error.message,
     });
   }
@@ -184,7 +184,7 @@ const deleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -192,30 +192,30 @@ const deleteUser = async (req, res) => {
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({
         success: false,
-        message: 'You cannot delete your own account',
+        message: "You cannot delete your own account",
       });
     }
 
     await user.deleteOne();
 
-    await logUserAction('user_deleted', {
+    await logUserAction("user_deleted", {
       userId: req.user._id,
       email: req.user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req.get("user-agent"),
       resourceId: user._id,
       metadata: { deletedEmail: user.email },
     });
 
     res.status(200).json({
       success: true,
-      message: 'User deleted successfully',
+      message: "User deleted successfully",
     });
   } catch (error) {
-    console.error('Delete user error:', error);
+    console.error("Delete user error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete user',
+      message: "Failed to delete user",
       error: error.message,
     });
   }
@@ -233,16 +233,16 @@ const updateUserRole = async (req, res) => {
     if (!roleName) {
       return res.status(400).json({
         success: false,
-        message: 'Role name is required',
+        message: "Role name is required",
       });
     }
 
-    const user = await User.findById(req.params.id).populate('role');
+    const user = await User.findById(req.params.id).populate("role");
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -250,7 +250,7 @@ const updateUserRole = async (req, res) => {
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({
         success: false,
-        message: 'You cannot change your own role',
+        message: "You cannot change your own role",
       });
     }
 
@@ -259,7 +259,7 @@ const updateUserRole = async (req, res) => {
     if (!newRole) {
       return res.status(404).json({
         success: false,
-        message: 'Role not found',
+        message: "Role not found",
       });
     }
 
@@ -267,33 +267,33 @@ const updateUserRole = async (req, res) => {
     user.role = newRole._id;
     await user.save();
 
-    await logUserAction('user_updated', {
+    await logUserAction("user_updated", {
       userId: req.user._id,
       email: req.user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req.get("user-agent"),
       resourceId: user._id,
       metadata: {
-        action: 'role_change',
+        action: "role_change",
         oldRole: oldRoleName,
         newRole: roleName,
       },
     });
 
     const updatedUser = await User.findById(user._id)
-      .populate('role')
-      .select('-password -mfaSecret');
+      .populate("role")
+      .select("-password -mfaSecret");
 
     res.status(200).json({
       success: true,
-      message: 'User role updated successfully',
+      message: "User role updated successfully",
       data: { user: updatedUser },
     });
   } catch (error) {
-    console.error('Update user role error:', error);
+    console.error("Update user role error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update user role',
+      message: "Failed to update user role",
       error: error.message,
     });
   }
@@ -311,7 +311,7 @@ const updateUserStatus = async (req, res) => {
     if (isActive === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'isActive field is required',
+        message: "isActive field is required",
       });
     }
 
@@ -320,7 +320,7 @@ const updateUserStatus = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -328,34 +328,34 @@ const updateUserStatus = async (req, res) => {
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({
         success: false,
-        message: 'You cannot change your own account status',
+        message: "You cannot change your own account status",
       });
     }
 
     user.isActive = isActive;
     await user.save();
 
-    await logUserAction('user_updated', {
+    await logUserAction("user_updated", {
       userId: req.user._id,
       email: req.user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req.get("user-agent"),
       resourceId: user._id,
       metadata: {
-        action: 'status_change',
-        newStatus: isActive ? 'active' : 'inactive',
+        action: "status_change",
+        newStatus: isActive ? "active" : "inactive",
       },
     });
 
     res.status(200).json({
       success: true,
-      message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
+      message: `User ${isActive ? "activated" : "deactivated"} successfully`,
     });
   } catch (error) {
-    console.error('Update user status error:', error);
+    console.error("Update user status error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update user status',
+      message: "Failed to update user status",
       error: error.message,
     });
   }

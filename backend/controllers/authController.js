@@ -1,8 +1,13 @@
-const User = require('../models/User');
-const Role = require('../models/Role');
-const { generateToken } = require('../utils/jwt');
-const { generateMFASecret, generateQRCode, verifyTOTP, generateBackupCodes } = require('../utils/otp');
-const { logAuth, logUserAction } = require('../utils/auditLogger');
+const User = require("../models/User");
+const Role = require("../models/Role");
+const { generateToken } = require("../../utils/jwt");
+const {
+  generateMFASecret,
+  generateQRCode,
+  verifyTOTP,
+  generateBackupCodes,
+} = require("../../utils/otp");
+const { logAuth, logUserAction } = require("../../utils/auditLogger");
 
 /**
  * Authentication Controller
@@ -27,26 +32,26 @@ const register = async (req, res) => {
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
-      await logAuth('user_created', {
+      await logAuth("user_created", {
         email,
         ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-        status: 'failure',
-        errorMessage: 'Email already registered',
+        userAgent: req.get("user-agent"),
+        status: "failure",
+        errorMessage: "Email already registered",
       });
 
       return res.status(400).json({
         success: false,
-        message: 'Email already registered',
+        message: "Email already registered",
       });
     }
 
     // Get customer role (default role for new users)
-    const customerRole = await Role.findOne({ name: 'customer' });
+    const customerRole = await Role.findOne({ name: "customer" });
     if (!customerRole) {
       return res.status(500).json({
         success: false,
-        message: 'Customer role not found. Please contact administrator.',
+        message: "Customer role not found. Please contact administrator.",
       });
     }
 
@@ -62,28 +67,28 @@ const register = async (req, res) => {
     });
 
     // Log successful registration
-    await logAuth('user_created', {
+    await logAuth("user_created", {
       userId: user._id,
       email: user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      status: 'success',
+      userAgent: req.get("user-agent"),
+      status: "success",
     });
 
     // Generate JWT token
     const token = generateToken(user);
 
     // Security: Set token in HTTP-only cookie
-    res.cookie('token', token, {
+    res.cookie("token", token, {
       httpOnly: true, // Prevents XSS attacks
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      sameSite: 'strict', // CSRF protection
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: "strict", // CSRF protection
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: "Registration successful",
       data: {
         user: {
           id: user._id,
@@ -96,10 +101,10 @@ const register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("Registration error:", error);
     res.status(500).json({
       success: false,
-      message: 'Registration failed',
+      message: "Registration failed",
       error: error.message,
     });
   }
@@ -116,56 +121,57 @@ const login = async (req, res) => {
 
     // Find user and include password for comparison
     const user = await User.findOne({ email: email.toLowerCase() })
-      .select('+password +mfaSecret')
-      .populate('role');
+      .select("+password +mfaSecret")
+      .populate("role");
 
     if (!user) {
       // Security: Don't reveal if user exists
-      await logAuth('login_failure', {
+      await logAuth("login_failure", {
         email,
         ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-        status: 'failure',
-        errorMessage: 'Invalid credentials',
+        userAgent: req.get("user-agent"),
+        status: "failure",
+        errorMessage: "Invalid credentials",
       });
 
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
     // Security: Check if account is locked
     if (user.isLocked) {
-      await logAuth('login_failure', {
+      await logAuth("login_failure", {
         userId: user._id,
         email: user.email,
         ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-        status: 'failure',
-        errorMessage: 'Account locked',
+        userAgent: req.get("user-agent"),
+        status: "failure",
+        errorMessage: "Account locked",
       });
 
       return res.status(401).json({
         success: false,
-        message: 'Account is locked due to too many failed login attempts. Please try again later.',
+        message:
+          "Account is locked due to too many failed login attempts. Please try again later.",
       });
     }
 
     // Security: Check if account is active
     if (!user.isActive) {
-      await logAuth('login_failure', {
+      await logAuth("login_failure", {
         userId: user._id,
         email: user.email,
         ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-        status: 'failure',
-        errorMessage: 'Account inactive',
+        userAgent: req.get("user-agent"),
+        status: "failure",
+        errorMessage: "Account inactive",
       });
 
       return res.status(401).json({
         success: false,
-        message: 'Account is inactive',
+        message: "Account is inactive",
       });
     }
 
@@ -176,18 +182,18 @@ const login = async (req, res) => {
       // Security: Increment login attempts
       await user.incLoginAttempts();
 
-      await logAuth('login_failure', {
+      await logAuth("login_failure", {
         userId: user._id,
         email: user.email,
         ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-        status: 'failure',
-        errorMessage: 'Invalid password',
+        userAgent: req.get("user-agent"),
+        status: "failure",
+        errorMessage: "Invalid password",
       });
 
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
@@ -197,7 +203,7 @@ const login = async (req, res) => {
         return res.status(200).json({
           success: true,
           mfaRequired: true,
-          message: 'MFA token required',
+          message: "MFA token required",
         });
       }
 
@@ -205,54 +211,54 @@ const login = async (req, res) => {
       const isMFAValid = verifyTOTP(mfaToken, user.mfaSecret);
 
       if (!isMFAValid) {
-        await logAuth('mfa_verify_failure', {
+        await logAuth("mfa_verify_failure", {
           userId: user._id,
           email: user.email,
           ipAddress: req.ip,
-          userAgent: req.get('user-agent'),
-          status: 'failure',
+          userAgent: req.get("user-agent"),
+          status: "failure",
         });
 
         return res.status(401).json({
           success: false,
-          message: 'Invalid MFA token',
+          message: "Invalid MFA token",
         });
       }
 
-      await logAuth('mfa_verify_success', {
+      await logAuth("mfa_verify_success", {
         userId: user._id,
         email: user.email,
         ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-        status: 'success',
+        userAgent: req.get("user-agent"),
+        status: "success",
       });
     }
 
     // Success: Reset login attempts and update last login
     await user.resetLoginAttempts();
 
-    await logAuth('login_success', {
+    await logAuth("login_success", {
       userId: user._id,
       email: user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      status: 'success',
+      userAgent: req.get("user-agent"),
+      status: "success",
     });
 
     // Generate JWT token
     const token = generateToken(user);
 
     // Security: Set token in HTTP-only cookie
-    res.cookie('token', token, {
+    res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.status(200).json({
       success: true,
-      message: 'Login successful',
+      message: "Login successful",
       data: {
         user: {
           id: user._id,
@@ -266,10 +272,10 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Login failed',
+      message: "Login failed",
       error: error.message,
     });
   }
@@ -282,29 +288,29 @@ const login = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
-    await logAuth('logout', {
+    await logAuth("logout", {
       userId: req.user._id,
       email: req.user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      status: 'success',
+      userAgent: req.get("user-agent"),
+      status: "success",
     });
 
     // Clear cookie
-    res.cookie('token', '', {
+    res.cookie("token", "", {
       httpOnly: true,
       expires: new Date(0),
     });
 
     res.status(200).json({
       success: true,
-      message: 'Logout successful',
+      message: "Logout successful",
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error("Logout error:", error);
     res.status(500).json({
       success: false,
-      message: 'Logout failed',
+      message: "Logout failed",
       error: error.message,
     });
   }
@@ -318,18 +324,18 @@ const logout = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .populate('role')
-      .select('-password -mfaSecret');
+      .populate("role")
+      .select("-password -mfaSecret");
 
     res.status(200).json({
       success: true,
       data: { user },
     });
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error("Get user error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get user profile',
+      message: "Failed to get user profile",
       error: error.message,
     });
   }
@@ -347,7 +353,7 @@ const enableMFA = async (req, res) => {
     if (user.mfaEnabled) {
       return res.status(400).json({
         success: false,
-        message: 'MFA is already enabled',
+        message: "MFA is already enabled",
       });
     }
 
@@ -367,18 +373,19 @@ const enableMFA = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'MFA setup initiated. Please verify with your authenticator app.',
+      message:
+        "MFA setup initiated. Please verify with your authenticator app.",
       data: {
         qrCode,
         secret,
-        backupCodes: backupCodes.map(bc => bc.code),
+        backupCodes: backupCodes.map((bc) => bc.code),
       },
     });
   } catch (error) {
-    console.error('Enable MFA error:', error);
+    console.error("Enable MFA error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to enable MFA',
+      message: "Failed to enable MFA",
       error: error.message,
     });
   }
@@ -396,16 +403,16 @@ const verifyMFA = async (req, res) => {
     if (!token) {
       return res.status(400).json({
         success: false,
-        message: 'MFA token is required',
+        message: "MFA token is required",
       });
     }
 
-    const user = await User.findById(req.user._id).select('+mfaSecret');
+    const user = await User.findById(req.user._id).select("+mfaSecret");
 
     if (!user.mfaSecret) {
       return res.status(400).json({
         success: false,
-        message: 'MFA setup not initiated',
+        message: "MFA setup not initiated",
       });
     }
 
@@ -415,7 +422,7 @@ const verifyMFA = async (req, res) => {
     if (!isValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid MFA token',
+        message: "Invalid MFA token",
       });
     }
 
@@ -423,23 +430,23 @@ const verifyMFA = async (req, res) => {
     user.mfaEnabled = true;
     await user.save();
 
-    await logAuth('mfa_enabled', {
+    await logAuth("mfa_enabled", {
       userId: user._id,
       email: user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      status: 'success',
+      userAgent: req.get("user-agent"),
+      status: "success",
     });
 
     res.status(200).json({
       success: true,
-      message: 'MFA enabled successfully',
+      message: "MFA enabled successfully",
     });
   } catch (error) {
-    console.error('Verify MFA error:', error);
+    console.error("Verify MFA error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to verify MFA',
+      message: "Failed to verify MFA",
       error: error.message,
     });
   }
@@ -457,11 +464,11 @@ const disableMFA = async (req, res) => {
     if (!password) {
       return res.status(400).json({
         success: false,
-        message: 'Password is required to disable MFA',
+        message: "Password is required to disable MFA",
       });
     }
 
-    const user = await User.findById(req.user._id).select('+password');
+    const user = await User.findById(req.user._id).select("+password");
 
     // Verify password before disabling MFA
     const isPasswordCorrect = await user.comparePassword(password);
@@ -469,7 +476,7 @@ const disableMFA = async (req, res) => {
     if (!isPasswordCorrect) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid password',
+        message: "Invalid password",
       });
     }
 
@@ -478,23 +485,23 @@ const disableMFA = async (req, res) => {
     user.mfaBackupCodes = [];
     await user.save();
 
-    await logAuth('mfa_disabled', {
+    await logAuth("mfa_disabled", {
       userId: user._id,
       email: user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      status: 'success',
+      userAgent: req.get("user-agent"),
+      status: "success",
     });
 
     res.status(200).json({
       success: true,
-      message: 'MFA disabled successfully',
+      message: "MFA disabled successfully",
     });
   } catch (error) {
-    console.error('Disable MFA error:', error);
+    console.error("Disable MFA error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to disable MFA',
+      message: "Failed to disable MFA",
       error: error.message,
     });
   }
@@ -509,7 +516,7 @@ const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    const user = await User.findById(req.user._id).select('+password');
+    const user = await User.findById(req.user._id).select("+password");
 
     // Verify current password
     const isPasswordCorrect = await user.comparePassword(currentPassword);
@@ -517,7 +524,7 @@ const changePassword = async (req, res) => {
     if (!isPasswordCorrect) {
       return res.status(401).json({
         success: false,
-        message: 'Current password is incorrect',
+        message: "Current password is incorrect",
       });
     }
 
@@ -531,23 +538,24 @@ const changePassword = async (req, res) => {
 
     await user.save();
 
-    await logAuth('password_change', {
+    await logAuth("password_change", {
       userId: user._id,
       email: user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      status: 'success',
+      userAgent: req.get("user-agent"),
+      status: "success",
     });
 
     res.status(200).json({
       success: true,
-      message: 'Password changed successfully. You have been logged out of all devices.',
+      message:
+        "Password changed successfully. You have been logged out of all devices.",
     });
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error("Change password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to change password',
+      message: "Failed to change password",
       error: error.message,
     });
   }
@@ -568,29 +576,29 @@ const logoutAll = async (req, res) => {
     user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
-    await logAuth('logout', {
+    await logAuth("logout", {
       userId: user._id,
       email: user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      status: 'success',
+      userAgent: req.get("user-agent"),
+      status: "success",
     });
 
     // Clear current session cookie
-    res.cookie('token', '', {
+    res.cookie("token", "", {
       httpOnly: true,
       expires: new Date(0),
     });
 
     res.status(200).json({
       success: true,
-      message: 'Logged out from all devices successfully',
+      message: "Logged out from all devices successfully",
     });
   } catch (error) {
-    console.error('Logout all error:', error);
+    console.error("Logout all error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to logout from all devices',
+      message: "Failed to logout from all devices",
       error: error.message,
     });
   }

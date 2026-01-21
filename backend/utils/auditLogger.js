@@ -1,4 +1,4 @@
-const AuditLog = require('../models/AuditLog');
+const AuditLog = require("../models/AuditLog");
 
 /**
  * Audit Logger Utility
@@ -39,12 +39,12 @@ const createAuditLog = async ({
   userAgent,
   metadata = {},
   errorMessage,
-  severity = 'low',
+  severity = "low",
 }) => {
   try {
     // Security: Validate required fields
     if (!action || !resource || !status || !ipAddress) {
-      console.error('Missing required fields for audit log');
+      console.error("Missing required fields for audit log");
       return;
     }
 
@@ -53,13 +53,13 @@ const createAuditLog = async ({
 
     const auditLog = new AuditLog({
       user: userId || null,
-      email: email || 'unknown',
+      email: email || "unknown",
       action,
       resource,
       resourceId: resourceId || null,
       status,
       ipAddress,
-      userAgent: userAgent || 'unknown',
+      userAgent: userAgent || "unknown",
       metadata: sanitizedMetadata,
       errorMessage: errorMessage || null,
       severity,
@@ -68,7 +68,7 @@ const createAuditLog = async ({
     await auditLog.save();
   } catch (error) {
     // Critical: If audit logging fails, log to console but don't block the operation
-    console.error('Failed to create audit log:', error.message);
+    console.error("Failed to create audit log:", error.message);
   }
 };
 
@@ -79,27 +79,27 @@ const createAuditLog = async ({
  */
 const sanitizeMetadata = (metadata) => {
   const sensitiveFields = [
-    'password',
-    'token',
-    'secret',
-    'cardNumber',
-    'cvv',
-    'ssn',
-    'mfaSecret',
+    "password",
+    "token",
+    "secret",
+    "cardNumber",
+    "cvv",
+    "ssn",
+    "mfaSecret",
   ];
 
   const sanitized = { ...metadata };
 
   // Recursively check and remove sensitive fields
   const removeSensitiveData = (obj) => {
-    if (typeof obj !== 'object' || obj === null) return;
+    if (typeof obj !== "object" || obj === null) return;
 
-    Object.keys(obj).forEach(key => {
+    Object.keys(obj).forEach((key) => {
       const lowerKey = key.toLowerCase();
       // Remove field if it contains sensitive keywords
-      if (sensitiveFields.some(field => lowerKey.includes(field))) {
+      if (sensitiveFields.some((field) => lowerKey.includes(field))) {
         delete obj[key];
-      } else if (typeof obj[key] === 'object') {
+      } else if (typeof obj[key] === "object") {
         removeSensitiveData(obj[key]);
       }
     });
@@ -112,14 +112,17 @@ const sanitizeMetadata = (metadata) => {
 /**
  * Log authentication event
  */
-const logAuth = async (action, { userId, email, ipAddress, userAgent, status, errorMessage }) => {
-  const severity = status === 'failure' ? 'medium' : 'low';
+const logAuth = async (
+  action,
+  { userId, email, ipAddress, userAgent, status, errorMessage },
+) => {
+  const severity = status === "failure" ? "medium" : "low";
 
   await createAuditLog({
     userId,
     email,
     action,
-    resource: 'auth',
+    resource: "auth",
     status,
     ipAddress,
     userAgent,
@@ -131,67 +134,79 @@ const logAuth = async (action, { userId, email, ipAddress, userAgent, status, er
 /**
  * Log user management event
  */
-const logUserAction = async (action, { userId, email, ipAddress, userAgent, resourceId, metadata }) => {
+const logUserAction = async (
+  action,
+  { userId, email, ipAddress, userAgent, resourceId, metadata },
+) => {
   await createAuditLog({
     userId,
     email,
     action,
-    resource: 'user',
+    resource: "user",
     resourceId,
-    status: 'success',
+    status: "success",
     ipAddress,
     userAgent,
     metadata,
-    severity: 'medium',
+    severity: "medium",
   });
 };
 
 /**
  * Log product management event
  */
-const logProductAction = async (action, { userId, email, ipAddress, userAgent, resourceId, metadata }) => {
+const logProductAction = async (
+  action,
+  { userId, email, ipAddress, userAgent, resourceId, metadata },
+) => {
   await createAuditLog({
     userId,
     email,
     action,
-    resource: 'product',
+    resource: "product",
     resourceId,
-    status: 'success',
+    status: "success",
     ipAddress,
     userAgent,
     metadata,
-    severity: 'low',
+    severity: "low",
   });
 };
 
 /**
  * Log order event
  */
-const logOrderAction = async (action, { userId, email, ipAddress, userAgent, resourceId, metadata }) => {
+const logOrderAction = async (
+  action,
+  { userId, email, ipAddress, userAgent, resourceId, metadata },
+) => {
   await createAuditLog({
     userId,
     email,
     action,
-    resource: 'order',
+    resource: "order",
     resourceId,
-    status: 'success',
+    status: "success",
     ipAddress,
     userAgent,
     metadata,
-    severity: 'medium',
+    severity: "medium",
   });
 };
 
 /**
  * Log security event
  */
-const logSecurityEvent = async (action, { userId, email, ipAddress, userAgent, metadata, severity = 'high' }) => {
+const logSecurityEvent = async (
+  action,
+  { userId, email, ipAddress, userAgent, metadata, severity = "high" },
+) => {
   await createAuditLog({
     userId,
     email,
     action,
-    resource: 'system',
-    status: 'failure',
+    resource: "system",
+    status: "failure",
     ipAddress,
     userAgent,
     metadata,

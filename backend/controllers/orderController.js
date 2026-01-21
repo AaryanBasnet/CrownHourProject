@@ -1,7 +1,7 @@
-const Order = require('../models/Order');
-const Product = require('../models/Product');
-const { logOrderAction } = require('../utils/auditLogger');
-const crypto = require('crypto');
+const Order = require("../models/Order");
+const Product = require("../models/Product");
+const { logOrderAction } = require("../../utils/auditLogger");
+const crypto = require("crypto");
 
 /**
  * Order Controller
@@ -20,7 +20,7 @@ const crypto = require('crypto');
  */
 const generateOrderNumber = () => {
   const timestamp = Date.now().toString(36);
-  const random = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const random = crypto.randomBytes(3).toString("hex").toUpperCase();
   return `ORD-${timestamp}-${random}`;
 };
 
@@ -72,7 +72,10 @@ const createOrder = async (req, res) => {
           brand: product.brand,
           model: product.model,
           price: product.price,
-          imageUrl: product.images && product.images.length > 0 ? product.images[0].url : null,
+          imageUrl:
+            product.images && product.images.length > 0
+              ? product.images[0].url
+              : null,
         },
         quantity: item.quantity,
         priceAtPurchase: product.price,
@@ -94,7 +97,7 @@ const createOrder = async (req, res) => {
       billingAddress,
       payment: {
         method: payment.method,
-        status: 'pending',
+        status: "pending",
         // Security: Only store last 4 digits of card
         cardLastFour: payment.cardLastFour || null,
       },
@@ -105,7 +108,7 @@ const createOrder = async (req, res) => {
         discount: 0,
         total,
       },
-      status: 'pending',
+      status: "pending",
     });
 
     // Update product stock
@@ -115,11 +118,11 @@ const createOrder = async (req, res) => {
       });
     }
 
-    await logOrderAction('order_created', {
+    await logOrderAction("order_created", {
       userId: req.user._id,
       email: req.user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req.get("user-agent"),
       resourceId: order._id,
       metadata: {
         orderNumber: order.orderNumber,
@@ -128,19 +131,21 @@ const createOrder = async (req, res) => {
       },
     });
 
-    const populatedOrder = await Order.findById(order._id)
-      .populate('items.product', 'name brand model');
+    const populatedOrder = await Order.findById(order._id).populate(
+      "items.product",
+      "name brand model",
+    );
 
     res.status(201).json({
       success: true,
-      message: 'Order created successfully',
+      message: "Order created successfully",
       data: { order: populatedOrder },
     });
   } catch (error) {
-    console.error('Create order error:', error);
+    console.error("Create order error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create order',
+      message: "Failed to create order",
       error: error.message,
     });
   }
@@ -159,7 +164,7 @@ const getAllOrders = async (req, res) => {
     const query = {};
 
     // Security: Customers can only see their own orders
-    if (req.user.role.name !== 'admin') {
+    if (req.user.role.name !== "admin") {
       query.user = req.user._id;
     }
 
@@ -169,8 +174,8 @@ const getAllOrders = async (req, res) => {
 
     // Execute query with pagination
     const orders = await Order.find(query)
-      .populate('user', 'firstName lastName email')
-      .populate('items.product', 'name brand model')
+      .populate("user", "firstName lastName email")
+      .populate("items.product", "name brand model")
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .sort({ createdAt: -1 });
@@ -187,10 +192,10 @@ const getAllOrders = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get all orders error:', error);
+    console.error("Get all orders error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get orders',
+      message: "Failed to get orders",
       error: error.message,
     });
   }
@@ -204,21 +209,24 @@ const getAllOrders = async (req, res) => {
 const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate('user', 'firstName lastName email')
-      .populate('items.product', 'name brand model images');
+      .populate("user", "firstName lastName email")
+      .populate("items.product", "name brand model images");
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found',
+        message: "Order not found",
       });
     }
 
     // Security: Customers can only view their own orders
-    if (req.user.role.name !== 'admin' && order.user._id.toString() !== req.user._id.toString()) {
+    if (
+      req.user.role.name !== "admin" &&
+      order.user._id.toString() !== req.user._id.toString()
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: "Access denied",
       });
     }
 
@@ -227,10 +235,10 @@ const getOrderById = async (req, res) => {
       data: { order },
     });
   } catch (error) {
-    console.error('Get order error:', error);
+    console.error("Get order error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get order',
+      message: "Failed to get order",
       error: error.message,
     });
   }
@@ -248,15 +256,23 @@ const updateOrderStatus = async (req, res) => {
     if (!status) {
       return res.status(400).json({
         success: false,
-        message: 'Status is required',
+        message: "Status is required",
       });
     }
 
-    const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+    const validStatuses = [
+      "pending",
+      "confirmed",
+      "processing",
+      "shipped",
+      "delivered",
+      "cancelled",
+      "refunded",
+    ];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status',
+        message: "Invalid status",
       });
     }
 
@@ -265,7 +281,7 @@ const updateOrderStatus = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found',
+        message: "Order not found",
       });
     }
 
@@ -281,9 +297,9 @@ const updateOrderStatus = async (req, res) => {
     });
 
     // Handle specific status changes
-    if (status === 'delivered') {
+    if (status === "delivered") {
       order.deliveredAt = new Date();
-    } else if (status === 'cancelled') {
+    } else if (status === "cancelled") {
       order.cancelledAt = new Date();
       if (note) {
         order.cancellationReason = note;
@@ -299,15 +315,15 @@ const updateOrderStatus = async (req, res) => {
 
     await order.save();
 
-    await logOrderAction('order_updated', {
+    await logOrderAction("order_updated", {
       userId: req.user._id,
       email: req.user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req.get("user-agent"),
       resourceId: order._id,
       metadata: {
         orderNumber: order.orderNumber,
-        action: 'status_change',
+        action: "status_change",
         oldStatus,
         newStatus: status,
       },
@@ -315,14 +331,14 @@ const updateOrderStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Order status updated successfully',
+      message: "Order status updated successfully",
       data: { order },
     });
   } catch (error) {
-    console.error('Update order status error:', error);
+    console.error("Update order status error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update order status',
+      message: "Failed to update order status",
       error: error.message,
     });
   }
@@ -342,34 +358,37 @@ const cancelOrder = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found',
+        message: "Order not found",
       });
     }
 
     // Security: Users can only cancel their own orders
-    if (req.user.role.name !== 'admin' && order.user.toString() !== req.user._id.toString()) {
+    if (
+      req.user.role.name !== "admin" &&
+      order.user.toString() !== req.user._id.toString()
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: "Access denied",
       });
     }
 
     // Can only cancel pending or confirmed orders
-    if (!['pending', 'confirmed'].includes(order.status)) {
+    if (!["pending", "confirmed"].includes(order.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Order cannot be cancelled at this stage',
+        message: "Order cannot be cancelled at this stage",
       });
     }
 
-    order.status = 'cancelled';
+    order.status = "cancelled";
     order.cancelledAt = new Date();
-    order.cancellationReason = reason || 'Customer request';
+    order.cancellationReason = reason || "Customer request";
 
     order.statusHistory.push({
-      status: 'cancelled',
+      status: "cancelled",
       timestamp: new Date(),
-      note: reason || 'Customer request',
+      note: reason || "Customer request",
       updatedBy: req.user._id,
     });
 
@@ -382,28 +401,28 @@ const cancelOrder = async (req, res) => {
 
     await order.save();
 
-    await logOrderAction('order_cancelled', {
+    await logOrderAction("order_cancelled", {
       userId: req.user._id,
       email: req.user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req.get("user-agent"),
       resourceId: order._id,
       metadata: {
         orderNumber: order.orderNumber,
-        reason: reason || 'Customer request',
+        reason: reason || "Customer request",
       },
     });
 
     res.status(200).json({
       success: true,
-      message: 'Order cancelled successfully',
+      message: "Order cancelled successfully",
       data: { order },
     });
   } catch (error) {
-    console.error('Cancel order error:', error);
+    console.error("Cancel order error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to cancel order',
+      message: "Failed to cancel order",
       error: error.message,
     });
   }
@@ -421,15 +440,15 @@ const updatePaymentStatus = async (req, res) => {
     if (!status) {
       return res.status(400).json({
         success: false,
-        message: 'Payment status is required',
+        message: "Payment status is required",
       });
     }
 
-    const validStatuses = ['pending', 'completed', 'failed', 'refunded'];
+    const validStatuses = ["pending", "completed", "failed", "refunded"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid payment status',
+        message: "Invalid payment status",
       });
     }
 
@@ -438,7 +457,7 @@ const updatePaymentStatus = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found',
+        message: "Order not found",
       });
     }
 
@@ -449,21 +468,21 @@ const updatePaymentStatus = async (req, res) => {
       order.payment.transactionId = transactionId;
     }
 
-    if (status === 'completed') {
+    if (status === "completed") {
       order.payment.paidAt = new Date();
       // Auto-confirm order when payment is completed
-      if (order.status === 'pending') {
-        order.status = 'confirmed';
+      if (order.status === "pending") {
+        order.status = "confirmed";
       }
     }
 
     await order.save();
 
-    await logOrderAction('payment_completed', {
+    await logOrderAction("payment_completed", {
       userId: req.user._id,
       email: req.user.email,
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req.get("user-agent"),
       resourceId: order._id,
       metadata: {
         orderNumber: order.orderNumber,
@@ -474,14 +493,14 @@ const updatePaymentStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Payment status updated successfully',
+      message: "Payment status updated successfully",
       data: { order },
     });
   } catch (error) {
-    console.error('Update payment status error:', error);
+    console.error("Update payment status error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update payment status',
+      message: "Failed to update payment status",
       error: error.message,
     });
   }
