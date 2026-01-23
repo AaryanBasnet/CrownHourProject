@@ -3,7 +3,7 @@
  * Validates required environment variables on startup
  */
 const requiredEnvVars = [
-  'MONGODB_URI',
+  'MONGO_URI',
   'JWT_SECRET',
   'SESSION_SECRET',
   'NODE_ENV',

@@ -1,4 +1,4 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
 const {
   createOrder,
@@ -7,13 +7,10 @@ const {
   updateOrderStatus,
   cancelOrder,
   updatePaymentStatus,
-} = require("../controllers/orderController");
-const { protect } = require("../../middleware/auth");
-const { requirePermission } = require("../../middleware/rbac");
-const {
-  validateOrder,
-  validateObjectId,
-} = require("../../middleware/validateInput");
+} = require('../controllers/orderController');
+const { protect } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/rbac');
+const { validateOrder, validateObjectId } = require('../middleware/validateInput');
 
 /**
  * Order Routes

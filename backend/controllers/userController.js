@@ -1,7 +1,7 @@
-const User = require("../../models/User");
-const Role = require("../../models/Role");
-const { logUserAction } = require("../../utils/auditLogger");
-const { sanitizeInput } = require("../../utils/validation");
+const User = require('../models/User');
+const Role = require('../models/Role');
+const { logUserAction } = require('../utils/auditLogger');
+const { sanitizeInput } = require('../utils/validation');
 
 /**
  * User Controller

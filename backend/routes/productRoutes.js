@@ -1,4 +1,4 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
 const {
   getAllProducts,
@@ -8,13 +8,10 @@ const {
   deleteProduct,
   updateProductStock,
   getFeaturedProducts,
-} = require("../controllers/productController");
-const { protect, optionalAuth } = require("../../middleware/auth");
-const { requirePermission } = require("../../middleware/rbac");
-const {
-  validateProduct,
-  validateObjectId,
-} = require("../../middleware/validateInput");
+} = require('../controllers/productController');
+const { protect, optionalAuth } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/rbac');
+const { validateProduct, validateObjectId } = require('../middleware/validateInput');
 
 /**
  * Product Routes

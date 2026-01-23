@@ -1,6 +1,7 @@
-const Product = require("../models/Product");
-const { logProductAction } = require("../../utils/auditLogger");
-const { sanitizeInput } = require("../../utils/validation");
+const Product = require('../models/Product');
+const { logProductAction } = require('../utils/auditLogger');
+const { sanitizeInput } = require('../utils/validation');
+
 
 /**
  * Product Controller

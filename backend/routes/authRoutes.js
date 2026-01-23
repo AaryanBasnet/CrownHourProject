@@ -1,4 +1,4 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
 const {
   register,
@@ -10,18 +10,18 @@ const {
   verifyMFA,
   disableMFA,
   changePassword,
-} = require("../controllers/authController");
-const { protect } = require("../../middleware/auth");
+} = require('../controllers/authController');
+const { protect } = require('../middleware/auth');
 const {
   validateRegistration,
   validateLogin,
   validatePasswordChange,
-} = require("../../middleware/validateInput");
+} = require('../middleware/validateInput');
 const {
   authLimiter,
   createAccountLimiter,
   passwordResetLimiter,
-} = require("../../middleware/rateLimiter");
+} = require('../middleware/rateLimiter');
 
 /**
  * Authentication Routes

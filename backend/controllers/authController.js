@@ -1,13 +1,8 @@
-const User = require("../models/User");
-const Role = require("../models/Role");
-const { generateToken } = require("../../utils/jwt");
-const {
-  generateMFASecret,
-  generateQRCode,
-  verifyTOTP,
-  generateBackupCodes,
-} = require("../../utils/otp");
-const { logAuth, logUserAction } = require("../../utils/auditLogger");
+const User = require('../models/User');
+const Role = require('../models/Role');
+const { generateToken } = require('../utils/jwt');
+const { generateMFASecret, generateQRCode, verifyTOTP, generateBackupCodes } = require('../utils/otp');
+const { logAuth, logUserAction } = require('../utils/auditLogger');
 
 /**
  * Authentication Controller

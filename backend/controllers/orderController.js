@@ -1,7 +1,7 @@
-const Order = require("../models/Order");
-const Product = require("../models/Product");
-const { logOrderAction } = require("../../utils/auditLogger");
-const crypto = require("crypto");
+const Order = require('../models/Order');
+const Product = require('../models/Product');
+const { logOrderAction } = require('../utils/auditLogger');
+const crypto = require('crypto');
 
 /**
  * Order Controller
