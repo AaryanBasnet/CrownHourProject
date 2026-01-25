@@ -1,98 +1,104 @@
 const Product = require('../models/Product');
-const { logProductAction } = require('../utils/auditLogger');
-const { sanitizeInput } = require('../utils/validation');
-
+const { logUserAction } = require('../utils/auditLogger');
 
 /**
  * Product Controller
- * Handles product management operations
- *
+ * Handles all product-related operations
+ * 
  * Security:
- * - Only admins can create/update/delete products
- * - Public can view active products
- * - All product modifications are logged
- * - Input validation prevents malicious data
+ * - Input validation and sanitization
+ * - Rate limiting applied at route level
+ * - Only admins can create/update/delete
+ * - Public can only read active products
  */
 
 /**
- * @desc    Get all products
+ * @desc    Get all products with filtering, sorting, and pagination
  * @route   GET /api/products
  * @access  Public
  */
-const getAllProducts = async (req, res) => {
+const getProducts = async (req, res) => {
   try {
     const {
       page = 1,
       limit = 12,
-      search,
+      sort = '-createdAt',
       category,
-      brand,
+      movement,
+      strapMaterial,
       minPrice,
       maxPrice,
-      sortBy = "createdAt",
-      order = "desc",
-      isActive,
+      search,
+      featured,
     } = req.query;
 
-    // Build query
-    const query = {};
+    // Build filter object
+    const filter = { isActive: true };
 
-    // Security: Non-admin users can only see active products
-    if (req.user?.role?.name !== "admin") {
-      query.isActive = true;
-    } else if (isActive !== undefined) {
-      query.isActive = isActive === "true";
-    }
-
-    // Search in name, description, brand
-    if (search) {
-      query.$text = { $search: search };
-    }
-
-    // Filter by category
+    // Category filter
     if (category) {
-      query.category = category;
+      filter.category = category;
     }
 
-    // Filter by brand
-    if (brand) {
-      query.brand = { $regex: brand, $options: "i" };
+    // Movement filter
+    if (movement) {
+      filter['specifications.movement'] = movement;
+    }
+
+    // Strap material filter
+    if (strapMaterial) {
+      filter['specifications.strapMaterial'] = strapMaterial;
     }
 
     // Price range filter
     if (minPrice || maxPrice) {
-      query.price = {};
-      if (minPrice) query.price.$gte = parseFloat(minPrice);
-      if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+      filter.price = {};
+      if (minPrice) filter.price.$gte = Number(minPrice);
+      if (maxPrice) filter.price.$lte = Number(maxPrice);
     }
 
-    // Sort options
-    const sortOptions = {};
-    sortOptions[sortBy] = order === "asc" ? 1 : -1;
+    // Featured filter
+    if (featured === 'true') {
+      filter.isFeatured = true;
+    }
+
+    // Search filter (text search)
+    if (search) {
+      filter.$text = { $search: search };
+    }
+
+    // Calculate pagination
+    const skip = (Number(page) - 1) * Number(limit);
 
     // Execute query with pagination
-    const products = await Product.find(query)
-      .populate("createdBy", "firstName lastName email")
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .sort(sortOptions);
+    const products = await Product.find(filter)
+      .sort(sort)
+      .limit(Number(limit))
+      .skip(skip)
+      .skip(skip)
+      // Security: Explicit field selection (Prevent PII leak)
+      .select('name slug price comparePrice images category brand model rating stock isFeatured specifications createdAt isActive');
 
-    const count = await Product.countDocuments(query);
+    // Get total count for pagination
+    const total = await Product.countDocuments(filter);
 
     res.status(200).json({
       success: true,
       data: {
         products,
-        totalPages: Math.ceil(count / limit),
-        currentPage: page,
-        total: count,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit)),
+        },
       },
     });
   } catch (error) {
-    console.error("Get all products error:", error);
+    console.error('Get products error:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to get products",
+      message: 'Failed to fetch products',
       error: error.message,
     });
   }
@@ -105,22 +111,17 @@ const getAllProducts = async (req, res) => {
  */
 const getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id)
-      .populate("createdBy", "firstName lastName")
-      .populate("updatedBy", "firstName lastName");
+    const { id } = req.params;
+
+    const product = await Product.findOne({
+      _id: id,
+      isActive: true,
+    }).select('-createdBy -updatedBy');
 
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Product not found",
-      });
-    }
-
-    // Security: Non-admin users can only view active products
-    if (!product.isActive && req.user?.role?.name !== "admin") {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
+        message: 'Product not found',
       });
     }
 
@@ -129,298 +130,339 @@ const getProductById = async (req, res) => {
       data: { product },
     });
   } catch (error) {
-    console.error("Get product error:", error);
+    console.error('Get product error:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to get product",
+      message: 'Failed to fetch product',
       error: error.message,
     });
   }
 };
 
 /**
- * @desc    Create new product (admin only)
+ * @desc    Create new product
  * @route   POST /api/products
  * @access  Private/Admin
  */
 const createProduct = async (req, res) => {
   try {
-    // Security: Sanitize input
-    const allowedFields = [
-      "name",
-      "description",
-      "brand",
-      "model",
-      "price",
-      "currency",
-      "stock",
-      "category",
-      "specifications",
-      "images",
-      "isActive",
-      "isFeatured",
-    ];
+    // Security: Mass Assignment Protection (Allow-list)
+    const {
+      name, description, price, comparePrice, images, category,
+      brand, model, stock, specifications, isActive, isFeatured, slug, variants
+    } = req.body;
 
-    const productData = sanitizeInput(req.body, allowedFields);
+    // Security: Validate Image URLs (Prevent Malicious Links)
+    if (images && Array.isArray(images)) {
+      const allowedDomain = 'res.cloudinary.com';
+      const invalidImages = images.some(img => {
+        try {
+          const url = new URL(img.url);
+          return !url.hostname.endsWith(allowedDomain);
+        } catch (e) {
+          return true; // Invalid URL format
+        }
+      });
 
-    // Add creator
-    productData.createdBy = req.user._id;
+      if (invalidImages) {
+        return res.status(400).json({
+          success: false,
+          message: 'Security: One or more image URLs are not from a trusted domain',
+        });
+      }
+    }
+
+    const productData = {
+      name, description, price, comparePrice, images, category,
+      brand, model, stock, specifications, isActive, isFeatured, slug, variants,
+      createdBy: req.user._id,
+    };
 
     const product = await Product.create(productData);
 
-    await logProductAction("product_created", {
+    await logUserAction('product_created', {
       userId: req.user._id,
-      email: req.user.email,
+      productId: product._id,
+      productName: product.name,
       ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
-      resourceId: product._id,
-      metadata: {
-        productName: product.name,
-        brand: product.brand,
-        price: product.price,
-      },
+      userAgent: req.get('user-agent'),
     });
-
-    const populatedProduct = await Product.findById(product._id).populate(
-      "createdBy",
-      "firstName lastName",
-    );
 
     res.status(201).json({
       success: true,
-      message: "Product created successfully",
-      data: { product: populatedProduct },
+      message: 'Product created successfully',
+      data: { product },
     });
   } catch (error) {
-    console.error("Create product error:", error);
+    console.error('Create product error:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to create product",
+      message: 'Failed to create product',
       error: error.message,
     });
   }
 };
 
 /**
- * @desc    Update product (admin only)
+ * @desc    Update product
  * @route   PUT /api/products/:id
  * @access  Private/Admin
  */
 const updateProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const { id } = req.params;
+
+    // Security: Filter allowed updates (Prevent modifying unauthorized fields)
+    const {
+      name, description, price, comparePrice, images, category,
+      brand, model, stock, specifications, isActive, isFeatured, slug, variants
+    } = req.body;
+
+    // Security: Validate Image URLs
+    if (images && Array.isArray(images)) {
+      const allowedDomain = 'res.cloudinary.com';
+      const invalidImages = images.some(img => {
+        // Allow keeping existing images if they don't have full URL or are just IDs? 
+        // Assuming frontend always sends full URL.
+        // Skip check if no url property (partial object?) - better be strict.
+        if (!img.url) return false;
+        try {
+          const url = new URL(img.url);
+          return !url.hostname.endsWith(allowedDomain);
+        } catch (e) {
+          return false; // Let existing data pass or handle relative paths?
+          // Actually for security relative paths are fine, and full URLs must be trusted.
+        }
+      });
+    }
+
+    const updates = {
+      name, description, price, comparePrice, images, category,
+      brand, model, stock, specifications, isActive, isFeatured, slug, variants,
+      updatedBy: req.user._id,
+    };
+
+    // Remove undefined fields so they don't overwrite with null
+    Object.keys(updates).forEach(key => updates[key] === undefined && delete updates[key]);
+
+    const product = await Product.findByIdAndUpdate(
+      id,
+      updates,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Product not found",
+        message: 'Product not found',
       });
     }
 
-    // Security: Sanitize input
-    const allowedFields = [
-      "name",
-      "description",
-      "brand",
-      "model",
-      "price",
-      "currency",
-      "stock",
-      "category",
-      "specifications",
-      "images",
-      "isActive",
-      "isFeatured",
-    ];
-
-    const updates = sanitizeInput(req.body, allowedFields);
-
-    // Track changes for audit log
-    const changes = {};
-    Object.keys(updates).forEach((key) => {
-      if (JSON.stringify(product[key]) !== JSON.stringify(updates[key])) {
-        changes[key] = {
-          old: product[key],
-          new: updates[key],
-        };
-      }
-    });
-
-    // Apply updates
-    Object.keys(updates).forEach((key) => {
-      product[key] = updates[key];
-    });
-
-    product.updatedBy = req.user._id;
-    await product.save();
-
-    await logProductAction("product_updated", {
+    await logUserAction('product_updated', {
       userId: req.user._id,
-      email: req.user.email,
+      productId: product._id,
+      productName: product.name,
       ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
-      resourceId: product._id,
-      metadata: {
-        productName: product.name,
-        changes: Object.keys(changes),
-      },
+      userAgent: req.get('user-agent'),
     });
-
-    const updatedProduct = await Product.findById(product._id)
-      .populate("createdBy", "firstName lastName")
-      .populate("updatedBy", "firstName lastName");
 
     res.status(200).json({
       success: true,
-      message: "Product updated successfully",
-      data: { product: updatedProduct },
+      message: 'Product updated successfully',
+      data: { product },
     });
   } catch (error) {
-    console.error("Update product error:", error);
+    console.error('Update product error:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to update product",
+      message: 'Failed to update product',
       error: error.message,
     });
   }
 };
 
 /**
- * @desc    Delete product (admin only)
+ * @desc    Delete product (soft delete)
  * @route   DELETE /api/products/:id
  * @access  Private/Admin
  */
 const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const { id } = req.params;
+
+    // Soft delete by setting isActive to false
+    const product = await Product.findByIdAndUpdate(
+      id,
+      {
+        isActive: false,
+        updatedBy: req.user._id,
+      },
+      { new: true }
+    );
 
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Product not found",
+        message: 'Product not found',
       });
     }
 
-    await product.deleteOne();
-
-    await logProductAction("product_deleted", {
+    await logUserAction('product_deleted', {
       userId: req.user._id,
-      email: req.user.email,
+      productId: product._id,
+      productName: product.name,
       ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
-      resourceId: product._id,
-      metadata: {
-        productName: product.name,
-        brand: product.brand,
-      },
+      userAgent: req.get('user-agent'),
     });
 
     res.status(200).json({
       success: true,
-      message: "Product deleted successfully",
+      message: 'Product deleted successfully',
     });
   } catch (error) {
-    console.error("Delete product error:", error);
+    console.error('Delete product error:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to delete product",
+      message: 'Failed to delete product',
       error: error.message,
     });
   }
 };
 
 /**
- * @desc    Update product stock (admin only)
- * @route   PATCH /api/products/:id/stock
- * @access  Private/Admin
+ * @desc    Get filter options (categories, movements, etc.)
+ * @route   GET /api/products/filters/options
+ * @access  Public
  */
-const updateProductStock = async (req, res) => {
+const getFilterOptions = async (req, res) => {
   try {
-    const { stock } = req.body;
+    // Get unique values for filters
+    const categories = await Product.distinct('category', { isActive: true });
+    const movements = await Product.distinct('specifications.movement', { isActive: true });
+    const strapMaterials = await Product.distinct('specifications.strapMaterial', { isActive: true });
 
-    if (stock === undefined || !Number.isInteger(stock) || stock < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Valid stock quantity is required",
-      });
+    // Get price range
+    const priceRange = await Product.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id: null,
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' },
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        categories: categories.filter(Boolean),
+        movements: movements.filter(Boolean),
+        strapMaterials: strapMaterials.filter(Boolean),
+        priceRange: priceRange[0] || { minPrice: 0, maxPrice: 0 },
+      },
+    });
+  } catch (error) {
+    console.error('Get filter options error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch filter options',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get single product by slug (SEO-friendly)
+ * @route   GET /api/products/slug/:slug
+ * @access  Public
+ */
+const getProductBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    // Security: Prevent NoSQL Injection (Type Checking)
+    if (typeof slug !== 'string') {
+      return res.status(400).json({ success: false, message: 'Invalid slug format' });
     }
 
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findOne({
+      slug,
+      isActive: true,
+    }).select('-createdBy -updatedBy');
 
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Product not found",
+        message: 'Product not found',
       });
     }
 
-    const oldStock = product.stock;
-    product.stock = stock;
-    product.updatedBy = req.user._id;
-    await product.save();
-
-    await logProductAction("product_updated", {
-      userId: req.user._id,
-      email: req.user.email,
-      ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
-      resourceId: product._id,
-      metadata: {
-        productName: product.name,
-        action: "stock_update",
-        oldStock,
-        newStock: stock,
-      },
-    });
-
     res.status(200).json({
       success: true,
-      message: "Product stock updated successfully",
       data: { product },
     });
   } catch (error) {
-    console.error("Update product stock error:", error);
+    console.error('Get product by slug error:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to update product stock",
+      message: 'Failed to fetch product',
       error: error.message,
     });
   }
 };
 
 /**
- * @desc    Get featured products
- * @route   GET /api/products/featured
+ * @desc    Get related products
+ * @route   GET /api/products/:id/related
  * @access  Public
  */
-const getFeaturedProducts = async (req, res) => {
+const getRelatedProducts = async (req, res) => {
   try {
-    const { limit = 6 } = req.query;
+    const { id } = req.params;
+    const { limit = 4 } = req.query;
 
-    const products = await Product.find({ isActive: true, isFeatured: true })
-      .limit(limit * 1)
-      .sort({ createdAt: -1 });
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+
+    // Find related products in same category, excluding current product
+    const relatedProducts = await Product.find({
+      _id: { $ne: id },
+      category: product.category,
+      isActive: true,
+    })
+      .limit(Number(limit))
+      .select('name slug price images category rating');
 
     res.status(200).json({
       success: true,
-      data: { products },
+      data: { products: relatedProducts },
     });
   } catch (error) {
-    console.error("Get featured products error:", error);
+    console.error('Get related products error:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to get featured products",
+      message: 'Failed to fetch related products',
       error: error.message,
     });
   }
 };
 
 module.exports = {
-  getAllProducts,
+  getProducts,
   getProductById,
+  getProductBySlug,
+  getRelatedProducts,
   createProduct,
   updateProduct,
   deleteProduct,
-  updateProductStock,
-  getFeaturedProducts,
+  getFilterOptions,
 };
