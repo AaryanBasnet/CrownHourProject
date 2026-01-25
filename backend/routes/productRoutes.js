@@ -1,65 +1,40 @@
 const express = require('express');
 const router = express.Router();
 const {
-  getAllProducts,
+  getProducts,
   getProductById,
+  getProductBySlug,
+  getRelatedProducts,
   createProduct,
   updateProduct,
   deleteProduct,
-  updateProductStock,
-  getFeaturedProducts,
+  getFilterOptions,
 } = require('../controllers/productController');
-const { protect, optionalAuth } = require('../middleware/auth');
-const { requirePermission } = require('../middleware/rbac');
-const { validateProduct, validateObjectId } = require('../middleware/validateInput');
+const { getMensProducts, getWomensProducts } = require('../controllers/genderProductController');
+const { protect, restrictTo } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/rateLimiter');
 
 /**
  * Product Routes
- * All routes call controllers - no logic in route files
- *
+ * 
  * Security:
- * - Public routes for viewing products
- * - Admin-only routes for creating/updating/deleting
- * - Optional auth allows personalized product views
+ * - Public routes: GET products (with rate limiting)
+ * - Admin-only routes: CREATE, UPDATE, DELETE
+ * - Input validation at controller level
  */
 
-// Public routes (with optional auth for personalization)
-router.get("/", optionalAuth, getAllProducts);
-router.get("/featured", getFeaturedProducts);
-router.get("/:id", validateObjectId("id"), optionalAuth, getProductById);
+// Public routes
+router.get('/', authLimiter, getProducts);
+router.get('/filters/options', authLimiter, getFilterOptions);
+router.get('/men', authLimiter, getMensProducts);
+router.get('/women', authLimiter, getWomensProducts);
+router.get('/slug/:slug', authLimiter, getProductBySlug); // SEO-friendly slug route
+router.get('/:id/related', authLimiter, getRelatedProducts); // Related products
+router.get('/:id', authLimiter, getProductById);
 
-// Protected routes - admin only
-router.post(
-  "/",
-  protect,
-  requirePermission("create:products"),
-  validateProduct,
-  createProduct,
-);
-
-router.put(
-  "/:id",
-  validateObjectId("id"),
-  protect,
-  requirePermission("update:products"),
-  validateProduct,
-  updateProduct,
-);
-
-router.delete(
-  "/:id",
-  validateObjectId("id"),
-  protect,
-  requirePermission("delete:products"),
-  deleteProduct,
-);
-
-router.patch(
-  "/:id/stock",
-  validateObjectId("id"),
-  protect,
-  requirePermission("update:products"),
-  updateProductStock,
-);
+// Protected Admin routes
+router.post('/', protect, restrictTo('admin'), createProduct);
+router.put('/:id', protect, restrictTo('admin'), updateProduct);
+router.delete('/:id', protect, restrictTo('admin'), deleteProduct);
 
 module.exports = router;
