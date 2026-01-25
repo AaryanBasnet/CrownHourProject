@@ -1,0 +1,11 @@
+export { default as Hero } from './Hero';
+export { default as Marquee } from './Marquee';
+export { default as SectionHeader } from './SectionHeader';
+export { default as Collection } from './Collection';
+export { default as FeatureCard } from './FeatureCard';
+export { default as Features } from './Features';
+export { default as Craftsmanship } from './Craftsmanship';
+export { default as TestimonialCard } from './TestimonialCard';
+export { default as Testimonials } from './Testimonials';
+export { default as Gallery } from './Gallery';
+export { default as Newsletter } from './Newsletter';
