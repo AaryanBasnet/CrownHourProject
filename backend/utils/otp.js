@@ -54,7 +54,7 @@ const verifyTOTP = (token, secret) => {
     secret: secret,
     encoding: 'base32',
     token: token,
-    window: 2, // Allow 2 time steps before/after for clock skew
+    window: 6, // Allow 6 time steps (3 minutes) before/after to handle clock skew
   });
 };
 
