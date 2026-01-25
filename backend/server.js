@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
+const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/database');
 const { validateEnv } = require('./config/env');
@@ -13,17 +15,6 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 /**
  * CrownHour Backend Server
  * Secure MERN stack application for watch e-commerce
- *
- * Security Features:
- * - Helmet for HTTP headers security
- * - CORS configured for trusted origins
- * - NoSQL injection prevention
- * - Rate limiting
- * - HTTP-only cookies for JWT
- * - Input validation and sanitization
- * - Audit logging
- * - RBAC
- * - MFA support
  */
 
 // Validate environment variables
@@ -36,25 +27,88 @@ const app = express();
 connectDB();
 
 // Security: Helmet middleware for HTTP headers
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://js.stripe.com"],
+      imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+      connectSrc: ["'self'", "https://api.cloudinary.com", "https://api.stripe.com"],
+      frameSrc: ["'self'", "https://js.stripe.com"],
+    },
+  },
+}));
 
 // Security: CORS configuration
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true, // Allow cookies
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
 
 // Body parser middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Security: Stripe webhooks require raw body for signature verification
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/payment/webhook') {
+    next(); // Skip parsing for webhook
+  } else {
+    // Security: Limit payload size to prevent DoS (reduced from 10mb)
+    express.json({ limit: '50kb' })(req, res, next);
+  }
+});
+
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/payment/webhook') {
+    next();
+  } else {
+    express.urlencoded({ extended: true, limit: '50kb' })(req, res, next);
+  }
+});
+
+// Security: CSRF Protection via Origin Verification
+// Prevents cross-origin state changes even if cookies are leaked
+app.use((req, res, next) => {
+  // Skip for non-state-changing methods
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+
+  // Skip for Stripe Webhook (server-to-server)
+  if (req.originalUrl === '/api/payment/webhook') {
+    return next();
+  }
+
+  const origin = req.headers.origin;
+  const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+  // In production, strictly enforce origin
+  // In dev, allow Postman/Insomnia (which have no origin)
+  if (!origin && process.env.NODE_ENV === 'development') {
+    return next();
+  }
+
+  if (origin !== allowedOrigin) {
+    return res.status(403).json({
+      success: false,
+      message: 'CSRF Protection: Origin verification failed',
+    });
+  }
+
+  next();
+});
+
+// Security: Prevent HTTP Parameter Pollution (HPP)
+app.use(hpp());
 
 // Cookie parser middleware
 app.use(cookieParser());
 
 // Security: Prevent NoSQL injection
 app.use(mongoSanitize());
+
+// Security: Prevent XSS attacks
+app.use(xss());
 
 // Security: Rate limiting on all routes
 app.use('/api/', apiLimiter);
@@ -73,8 +127,14 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
+app.use('/api/reviews', require('./routes/reviewRoutes'));
+app.use('/api/cart', require('./routes/cartRoutes'));
+app.use('/api/wishlist', require('./routes/wishlistRoutes'));
+app.use('/api/payment', require('./routes/paymentRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/uploads', require('./routes/uploadRoutes'));
 
-// These routes demonstrate security vulnerabilities for educational purposes
+// ⚠️ VULNERABLE ROUTES - DISABLED FOR PRODUCTION SECURITY
 // app.use('/api/vulnerable', require('./routes/vulnerableRoutes'));
 
 // Error handling
