@@ -1,8 +1,4 @@
-const {
-  isValidEmail,
-  validatePassword,
-  isValidObjectId,
-} = require("../utils/validation");
+const { isValidEmail, validatePassword, isValidObjectId } = require('../utils/validation');
 
 /**
  * Input Validation Middleware
@@ -23,7 +19,7 @@ const validateRegistration = (req, res, next) => {
   if (!email || !password || !firstName || !lastName) {
     return res.status(400).json({
       success: false,
-      message: "Please provide all required fields",
+      message: 'Please provide all required fields',
     });
   }
 
@@ -31,7 +27,7 @@ const validateRegistration = (req, res, next) => {
   if (!isValidEmail(email)) {
     return res.status(400).json({
       success: false,
-      message: "Please provide a valid email address",
+      message: 'Please provide a valid email address',
     });
   }
 
@@ -40,7 +36,7 @@ const validateRegistration = (req, res, next) => {
   if (!passwordValidation.valid) {
     return res.status(400).json({
       success: false,
-      message: "Password does not meet requirements",
+      message: 'Password does not meet requirements',
       errors: passwordValidation.errors,
     });
   }
@@ -49,7 +45,7 @@ const validateRegistration = (req, res, next) => {
   if (firstName.trim().length === 0 || lastName.trim().length === 0) {
     return res.status(400).json({
       success: false,
-      message: "First name and last name cannot be empty",
+      message: 'First name and last name cannot be empty',
     });
   }
 
@@ -65,14 +61,14 @@ const validateLogin = (req, res, next) => {
   if (!email || !password) {
     return res.status(400).json({
       success: false,
-      message: "Please provide email and password",
+      message: 'Please provide email and password',
     });
   }
 
   if (!isValidEmail(email)) {
     return res.status(400).json({
       success: false,
-      message: "Please provide a valid email address",
+      message: 'Please provide a valid email address',
     });
   }
 
@@ -88,7 +84,7 @@ const validatePasswordChange = (req, res, next) => {
   if (!currentPassword || !newPassword) {
     return res.status(400).json({
       success: false,
-      message: "Please provide current password and new password",
+      message: 'Please provide current password and new password',
     });
   }
 
@@ -96,7 +92,7 @@ const validatePasswordChange = (req, res, next) => {
   if (!passwordValidation.valid) {
     return res.status(400).json({
       success: false,
-      message: "New password does not meet requirements",
+      message: 'New password does not meet requirements',
       errors: passwordValidation.errors,
     });
   }
@@ -104,7 +100,7 @@ const validatePasswordChange = (req, res, next) => {
   if (currentPassword === newPassword) {
     return res.status(400).json({
       success: false,
-      message: "New password must be different from current password",
+      message: 'New password must be different from current password',
     });
   }
 
@@ -117,40 +113,32 @@ const validatePasswordChange = (req, res, next) => {
 const validateProduct = (req, res, next) => {
   const { name, description, brand, model, price, stock, category } = req.body;
 
-  if (
-    !name ||
-    !description ||
-    !brand ||
-    !model ||
-    price === undefined ||
-    stock === undefined ||
-    !category
-  ) {
+  if (!name || !description || !brand || !model || price === undefined || stock === undefined || !category) {
     return res.status(400).json({
       success: false,
-      message: "Please provide all required product fields",
+      message: 'Please provide all required product fields',
     });
   }
 
-  if (typeof price !== "number" || price < 0) {
+  if (typeof price !== 'number' || price < 0) {
     return res.status(400).json({
       success: false,
-      message: "Price must be a positive number",
+      message: 'Price must be a positive number',
     });
   }
 
   if (!Number.isInteger(stock) || stock < 0) {
     return res.status(400).json({
       success: false,
-      message: "Stock must be a non-negative integer",
+      message: 'Stock must be a non-negative integer',
     });
   }
 
-  const validCategories = ["luxury", "sport", "casual", "smart", "vintage"];
+  const validCategories = ['luxury', 'sport', 'casual', 'smart', 'vintage'];
   if (!validCategories.includes(category)) {
     return res.status(400).json({
       success: false,
-      message: "Invalid category",
+      message: 'Invalid category',
     });
   }
 
@@ -160,14 +148,14 @@ const validateProduct = (req, res, next) => {
 /**
  * Validate MongoDB ObjectId parameter
  */
-const validateObjectId = (paramName = "id") => {
+const validateObjectId = (paramName = 'id') => {
   return (req, res, next) => {
     const id = req.params[paramName];
 
     if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid ID format",
+        message: 'Invalid ID format',
       });
     }
 
@@ -184,15 +172,14 @@ const validateOrder = (req, res, next) => {
   if (!items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({
       success: false,
-      message: "Order must contain at least one item",
+      message: 'Order must contain at least one item',
     });
   }
 
   if (!shippingAddress || !billingAddress || !payment) {
     return res.status(400).json({
       success: false,
-      message:
-        "Please provide shipping address, billing address, and payment details",
+      message: 'Please provide shipping address, billing address, and payment details',
     });
   }
 
@@ -201,21 +188,21 @@ const validateOrder = (req, res, next) => {
     if (!item.product || !item.quantity) {
       return res.status(400).json({
         success: false,
-        message: "Each item must have product ID and quantity",
+        message: 'Each item must have product ID and quantity',
       });
     }
 
     if (!isValidObjectId(item.product)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid product ID in order items",
+        message: 'Invalid product ID in order items',
       });
     }
 
     if (!Number.isInteger(item.quantity) || item.quantity < 1) {
       return res.status(400).json({
         success: false,
-        message: "Quantity must be a positive integer",
+        message: 'Quantity must be a positive integer',
       });
     }
   }
