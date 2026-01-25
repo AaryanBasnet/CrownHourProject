@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
  * - Tokens contain minimal user info (id, email, role)
  * - Never include sensitive data in tokens
  *
- * Further Enhancement: Token Versioning
+ * High Enhancement: Token Versioning
  * - Includes tokenVersion in JWT payload
  * - Enables immediate session revocation
  * - When user changes password/logs out everywhere, increment tokenVersion
@@ -19,7 +19,7 @@ const jwt = require('jsonwebtoken');
 /**
  * Generate JWT token for authenticated user
  *
- * Further Enhancement: Includes tokenVersion for session revocation
+ * High Enhancement: Includes tokenVersion for session revocation
  * @param {Object} user - User object with tokenVersion
  * @returns {String} JWT token
  */
