@@ -3,12 +3,12 @@ const crypto = require('crypto');
 /**
  * Field-Level Encryption Utility
  *
- * Security Enhancement: Distinction-Level Data Privacy
+ * Security Enhancement: High-Level Data Privacy
  * - Encrypts PII (Personally Identifiable Information) at rest
  * - Uses AES-256-GCM for authenticated encryption
  * - Prevents unauthorized access to sensitive data even if DB is compromised
  *
- * Academic Note: This demonstrates defense-in-depth security:
+ * This demonstrates defense-in-depth security:
  * 1. Passwords are hashed (one-way, cannot be decrypted)
  * 2. PII like phone numbers are encrypted (two-way, can be decrypted with key)
  * 3. Encryption key stored separately from database (environment variable)
