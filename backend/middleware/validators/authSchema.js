@@ -3,12 +3,12 @@ const { z } = require('zod');
 /**
  * Zod Validation Schemas for Authentication
  *
- * Security Enhancement: Distinction-Level Input Validation
+ * Security Enhancement: High-Level Input Validation
  * - Strict schema validation prevents Mass Assignment attacks
  * - Strong password requirements enforce security policy
  * - Type-safe validation with detailed error messages
  *
- * Academic Note: This demonstrates industry-standard input validation
+ *  This demonstrates industry-standard input validation
  * using Zod's strict mode to strip unknown fields automatically.
  */
 
