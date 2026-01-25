@@ -10,6 +10,7 @@ const {
   verifyMFA,
   disableMFA,
   changePassword,
+  verifyRegistrationOtp,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const {
@@ -34,18 +35,19 @@ const {
  */
 
 // Public routes
-router.post("/register", createAccountLimiter, validateRegistration, register);
-router.post("/login", authLimiter, validateLogin, login);
+router.post('/register', createAccountLimiter, validateRegistration, register);
+router.post('/login', authLimiter, validateLogin, login);
+router.post('/verify-otp', authLimiter, verifyRegistrationOtp); // Protected by strict auth limiter (5 attempts)
 
 // Protected routes
-router.post("/logout", protect, logout);
-router.post("/logout-all", protect, logoutAll); // Token versioning
-router.get("/me", protect, getMe);
-router.put("/password", protect, validatePasswordChange, changePassword);
+router.post('/logout', protect, logout);
+router.post('/logout-all', protect, logoutAll); // High: Token versioning
+router.get('/me', protect, getMe);
+router.put('/password', protect, validatePasswordChange, changePassword);
 
 // MFA routes
-router.post("/mfa/enable", protect, enableMFA);
-router.post("/mfa/verify", protect, verifyMFA);
-router.post("/mfa/disable", protect, disableMFA);
+router.post('/mfa/enable', protect, enableMFA);
+router.post('/mfa/verify', protect, verifyMFA);
+router.post('/mfa/disable', protect, disableMFA);
 
 module.exports = router;
