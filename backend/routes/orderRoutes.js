@@ -26,30 +26,30 @@ const { validateOrder, validateObjectId } = require('../middleware/validateInput
 router.use(protect);
 
 // Create new order
-router.post("/", validateOrder, createOrder);
+router.post('/', validateOrder, createOrder);
 
 // Get all orders (filtered by role in controller)
-router.get("/", getAllOrders);
+router.get('/', getAllOrders);
 
 // Get specific order
-router.get("/:id", validateObjectId("id"), getOrderById);
+router.get('/:id', validateObjectId('id'), getOrderById);
 
 // Cancel order - own order or admin
-router.put("/:id/cancel", validateObjectId("id"), cancelOrder);
+router.put('/:id/cancel', validateObjectId('id'), cancelOrder);
 
 // Admin-only routes
 router.put(
-  "/:id/status",
-  validateObjectId("id"),
-  requirePermission("update:orders"),
-  updateOrderStatus,
+  '/:id/status',
+  validateObjectId('id'),
+  requirePermission('update:orders'),
+  updateOrderStatus
 );
 
 router.put(
-  "/:id/payment",
-  validateObjectId("id"),
-  requirePermission("update:orders"),
-  updatePaymentStatus,
+  '/:id/payment',
+  validateObjectId('id'),
+  requirePermission('update:orders'),
+  updatePaymentStatus
 );
 
 module.exports = router;
