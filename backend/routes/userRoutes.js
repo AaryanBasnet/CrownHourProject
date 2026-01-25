@@ -7,6 +7,7 @@ const {
   deleteUser,
   updateUserRole,
   updateUserStatus,
+  updateProfilePicture,
 } = require('../controllers/userController');
 const { protect } = require('../middleware/auth');
 const { requirePermission, requireRole, requireOwnership } = require('../middleware/rbac');
@@ -42,6 +43,14 @@ router.put(
   validateObjectId('id'),
   requireOwnership('id'),
   updateUser
+);
+
+// Update profile picture - own profile only
+router.put(
+  '/:id/profile-picture',
+  validateObjectId('id'),
+  requireOwnership('id'),
+  updateProfilePicture
 );
 
 // Admin-only routes
