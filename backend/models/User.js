@@ -15,7 +15,7 @@ const { encrypt, decrypt } = require('../utils/encryption');
  * - Account locking after failed attempts
  * - Session management
  *
- * Further Enhancements:
+ * High-Level Enhancements:
  * 1. Field-Level Encryption: Phone numbers encrypted at rest
  * 2. Token Versioning: Enables immediate JWT revocation
  */
@@ -56,7 +56,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
     // Security: Phone number will be encrypted at rest using AES-256-GCM
-    // Further Enhancement: Field-level encryption for PII protection
+    // HIgh Enhancement: Field-level encryption for PII protection
     match: [/^[\d\s\-\+\(\)]+$/, 'Please provide a valid phone number'],
   },
   address: {
@@ -65,6 +65,11 @@ const userSchema = new mongoose.Schema({
     state: { type: String, trim: true },
     postalCode: { type: String, trim: true },
     country: { type: String, trim: true },
+  },
+  // Profile picture stored on Cloudinary
+  profilePicture: {
+    url: { type: String, default: '' },
+    publicId: { type: String, default: '' },
   },
   // Security: MFA configuration
   mfaEnabled: {
@@ -97,7 +102,7 @@ const userSchema = new mongoose.Schema({
     default: Date.now,
   },
   // Security: Token versioning for immediate session revocation
-  // Further Enhancement: Allows invalidating all active sessions
+  // HIgh Enhancement: Allows invalidating all active sessions
   tokenVersion: {
     type: Number,
     default: 0,
@@ -111,8 +116,12 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  verificationToken: {
+  verificationOTP: {
     type: String,
+    select: false,
+  },
+  verificationOTPExpires: {
+    type: Date,
     select: false,
   },
   passwordResetToken: {
@@ -128,13 +137,13 @@ const userSchema = new mongoose.Schema({
 });
 
 // Security: Virtual property to check if account is locked
-userSchema.virtual('isLocked').get(function() {
+userSchema.virtual('isLocked').get(function () {
   return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 
 // Security: Hash password before saving
 // This ensures passwords are NEVER stored in plain text
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   // Only hash if password is modified
   if (!this.isModified('password')) {
     return next();
@@ -151,8 +160,8 @@ userSchema.pre('save', async function(next) {
 });
 
 // Security: Encrypt PII before saving to database
-// Further Enhancement: Field-level encryption for data privacy
-userSchema.pre('save', async function(next) {
+// HIgh Enhancement: Field-level encryption for data privacy
+userSchema.pre('save', async function (next) {
   try {
     // Encrypt phone number if modified and not already encrypted
     if (this.isModified('phone') && this.phone) {
@@ -166,8 +175,8 @@ userSchema.pre('save', async function(next) {
 });
 
 // Security: Decrypt PII after loading from database
-// Further Enhancement: Automatic decryption when reading data
-userSchema.post('init', function(doc) {
+// HIgh Enhancement: Automatic decryption when reading data
+userSchema.post('init', function (doc) {
   try {
     // Decrypt phone number after loading from DB
     if (doc.phone) {
@@ -180,7 +189,7 @@ userSchema.post('init', function(doc) {
 });
 
 // Security: Decrypt PII after findOne operations
-userSchema.post('findOne', function(doc) {
+userSchema.post('findOne', function (doc) {
   if (doc && doc.phone) {
     try {
       doc.phone = decrypt(doc.phone);
@@ -191,7 +200,7 @@ userSchema.post('findOne', function(doc) {
 });
 
 // Method to compare password for login
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     // Security: Use bcrypt compare to validate password
     return await bcrypt.compare(candidatePassword, this.password);
@@ -201,7 +210,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 // Method to increment login attempts
-userSchema.methods.incLoginAttempts = async function() {
+userSchema.methods.incLoginAttempts = async function () {
   // Security: Reset attempts if lock has expired
   if (this.lockUntil && this.lockUntil < Date.now()) {
     return await this.updateOne({
@@ -223,7 +232,7 @@ userSchema.methods.incLoginAttempts = async function() {
 };
 
 // Method to reset login attempts after successful login
-userSchema.methods.resetLoginAttempts = async function() {
+userSchema.methods.resetLoginAttempts = async function () {
   return await this.updateOne({
     $set: { loginAttempts: 0, lastLogin: Date.now() },
     $unset: { lockUntil: 1 },
@@ -231,8 +240,8 @@ userSchema.methods.resetLoginAttempts = async function() {
 };
 
 // Security: Increment token version to invalidate all existing JWTs
-// Further Enhancement: Enables immediate session revocation
-userSchema.methods.incrementTokenVersion = async function() {
+// HIgh Enhancement: Enables immediate session revocation
+userSchema.methods.incrementTokenVersion = async function () {
   this.tokenVersion += 1;
   return await this.save();
 };
