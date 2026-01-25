@@ -1,6 +1,6 @@
-const rateLimit = require("express-rate-limit");
-const MongoStore = require("rate-limit-mongo");
-const { logSecurityEvent } = require("../utils/auditLogger");
+const rateLimit = require('express-rate-limit');
+const MongoStore = require('rate-limit-mongo');
+const { logSecurityEvent } = require('../utils/auditLogger');
 
 /**
  * Rate Limiting Middleware
@@ -21,7 +21,7 @@ const apiLimiter = rateLimit({
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 100 requests per windowMs
   message: {
     success: false,
-    message: "Too many requests from this IP, please try again later",
+    message: 'Too many requests from this IP, please try again later',
   },
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable `X-RateLimit-*` headers
@@ -32,18 +32,18 @@ const apiLimiter = rateLimit({
   // }),
   handler: async (req, res) => {
     // Log rate limit exceeded
-    await logSecurityEvent("rate_limit_exceeded", {
+    await logSecurityEvent('rate_limit_exceeded', {
       userId: req.user?._id,
-      email: req.user?.email || "unknown",
+      email: req.user?.email || 'unknown',
       ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
+      userAgent: req.get('user-agent'),
       metadata: { path: req.path, method: req.method },
-      severity: "medium",
+      severity: 'medium',
     });
 
     res.status(429).json({
       success: false,
-      message: "Too many requests from this IP, please try again later",
+      message: 'Too many requests from this IP, please try again later',
     });
   },
 });
@@ -57,22 +57,21 @@ const authLimiter = rateLimit({
   max: parseInt(process.env.BRUTE_FORCE_MAX_ATTEMPTS) || 5, // 5 attempts per windowMs
   message: {
     success: false,
-    message: "Too many authentication attempts, please try again later",
+    message: 'Too many authentication attempts, please try again later',
   },
   skipSuccessfulRequests: true, // Don't count successful logins
   handler: async (req, res) => {
-    await logSecurityEvent("rate_limit_exceeded", {
-      email: req.body?.email || "unknown",
+    await logSecurityEvent('rate_limit_exceeded', {
+      email: req.body?.email || 'unknown',
       ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
-      metadata: { endpoint: "auth", path: req.path },
-      severity: "high",
+      userAgent: req.get('user-agent'),
+      metadata: { endpoint: 'auth', path: req.path },
+      severity: 'high',
     });
 
     res.status(429).json({
       success: false,
-      message:
-        "Too many authentication attempts from this IP, please try again later",
+      message: 'Too many authentication attempts from this IP, please try again later',
     });
   },
 });
@@ -85,20 +84,20 @@ const passwordResetLimiter = rateLimit({
   max: 3, // 3 requests per hour
   message: {
     success: false,
-    message: "Too many password reset requests, please try again later",
+    message: 'Too many password reset requests, please try again later',
   },
   handler: async (req, res) => {
-    await logSecurityEvent("rate_limit_exceeded", {
-      email: req.body?.email || "unknown",
+    await logSecurityEvent('rate_limit_exceeded', {
+      email: req.body?.email || 'unknown',
       ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
-      metadata: { endpoint: "password_reset" },
-      severity: "medium",
+      userAgent: req.get('user-agent'),
+      metadata: { endpoint: 'password_reset' },
+      severity: 'medium',
     });
 
     res.status(429).json({
       success: false,
-      message: "Too many password reset requests, please try again in an hour",
+      message: 'Too many password reset requests, please try again in an hour',
     });
   },
 });
@@ -111,20 +110,48 @@ const createAccountLimiter = rateLimit({
   max: 5, // 5 accounts per hour per IP
   message: {
     success: false,
-    message: "Too many accounts created from this IP, please try again later",
+    message: 'Too many accounts created from this IP, please try again later',
   },
   handler: async (req, res) => {
-    await logSecurityEvent("rate_limit_exceeded", {
-      email: req.body?.email || "unknown",
+    await logSecurityEvent('rate_limit_exceeded', {
+      email: req.body?.email || 'unknown',
       ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
-      metadata: { endpoint: "create_account" },
-      severity: "high",
+      userAgent: req.get('user-agent'),
+      metadata: { endpoint: 'create_account' },
+      severity: 'high',
     });
 
     res.status(429).json({
       success: false,
-      message: "Too many accounts created from this IP, please try again later",
+      message: 'Too many accounts created from this IP, please try again later',
+    });
+  },
+});
+
+/**
+ * Rate limiter for upload operations
+ * Prevents flooding Cloudinary with signed uploads
+ */
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 uploads per 15 minutes
+  message: {
+    success: false,
+    message: 'Too many upload requests, please try again later',
+  },
+  handler: async (req, res) => {
+    await logSecurityEvent('upload_rate_limit_exceeded', {
+      userId: req.user?._id,
+      email: req.user?.email || 'unknown',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      metadata: { endpoint: 'upload_sign', path: req.path },
+      severity: 'medium',
+    });
+
+    res.status(429).json({
+      success: false,
+      message: 'Too many upload requests, please try again later',
     });
   },
 });
@@ -134,4 +161,5 @@ module.exports = {
   authLimiter,
   passwordResetLimiter,
   createAccountLimiter,
+  uploadLimiter,
 };
