@@ -1,5 +1,8 @@
 require("dotenv").config();
 const express = require("express");
+const https = require("https");
+const fs = require("fs");
+const path = require("path");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -13,6 +16,13 @@ const { validateEnv } = require("./config/env");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 const { apiLimiter } = require("./middleware/rateLimiter");
 const { doubleCsrfProtection, generateCsrfToken } = require("./config/csrf");
+
+// SSL Certificate Configuration
+const sslOptions = {
+  key: fs.readFileSync(path.join(__dirname, "certs", "localhost.key")),
+  cert: fs.readFileSync(path.join(__dirname, "certs", "localhost.crt")),
+  ca: fs.readFileSync(path.join(__dirname, "certs", "rootCA.pem")),
+};
 
 /**
  * CrownHour Backend Server
@@ -40,7 +50,7 @@ app.use(
     cookie: {
       maxAge: 30 * 60 * 1000, // 30 minutes in milliseconds
       httpOnly: true, // Prevent XSS attacks
-      secure: process.env.NODE_ENV === "production",
+      secure: true, // Always secure with HTTPS
       sameSite: "strict", // ✅ Maximum CSRF protection (OAuth uses token exchange)
     },
     name: "sessionId", // Custom cookie name
@@ -294,13 +304,14 @@ app.use("/api/uploads", require("./routes/uploadRoutes"));
 app.use(notFound);
 app.use(errorHandler);
 
-// Start server
+// Start HTTPS server
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
+const server = https.createServer(sslOptions, app).listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║           CrownHour Backend Server                    ║
 ║           Running in ${process.env.NODE_ENV || "development"} mode                    ║
+║           HTTPS Enabled (SSL/TLS)                     ║
 ║           Port: ${PORT}                                   ║
 ╚═══════════════════════════════════════════════════════╝
   `);
@@ -321,9 +332,9 @@ process.on("uncaughtException", (err) => {
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
-  console.log("SIGTERM signal received: closing HTTP server");
+  console.log("SIGTERM signal received: closing HTTPS server");
   server.close(() => {
-    console.log("HTTP server closed");
+    console.log("HTTPS server closed");
     mongoose.connection.close(false, () => {
       console.log("MongoDB connection closed");
       process.exit(0);

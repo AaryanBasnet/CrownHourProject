@@ -35,8 +35,12 @@ const Testimonials = () => {
         const { data } = await apiClient.get('/reviews/top-rated');
         if (data.success && data.data.length > 0) {
           const mappedTestimonials = data.data.map(review => ({
-            initials: `${review.user.firstName.charAt(0)}${review.user.lastName.charAt(0)}`,
-            name: `${review.user.firstName} ${review.user.lastName}`,
+            initials: review.user
+              ? `${review.user.firstName?.charAt(0) || ''}${review.user.lastName?.charAt(0) || ''}`
+              : 'AC',
+            name: review.user
+              ? `${review.user.firstName} ${review.user.lastName}`
+              : 'Anonymous Collector',
             title: 'Verified Collector', // Generic title since not persisted
             text: review.comment
           }));

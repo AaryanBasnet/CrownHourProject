@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,11 +29,17 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-
+    // HTTPS Configuration using backend certificates
+    https: {
+      key: fs.readFileSync(path.resolve(__dirname, "../backend/certs/localhost.key")),
+      cert: fs.readFileSync(path.resolve(__dirname, "../backend/certs/localhost.crt")),
+      ca: fs.readFileSync(path.resolve(__dirname, "../backend/certs/rootCA.pem")),
+    },
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
+        target: "https://localhost:5000",
         changeOrigin: true,
+        secure: false, // Allow self-signed certificates
       },
     },
   },

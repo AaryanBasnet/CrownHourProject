@@ -37,3 +37,13 @@ build/
 # Temporary files
 tmp/
 temp/
+
+
+# Certificates / Secrets
+backend/certs/
+*.key
+*.pem
+*.crt
+*.csr
+*.srl
+*.ext
