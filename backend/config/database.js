@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 /**
  * Database connection configuration
@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
  */
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
       // Security: Use new URL parser and unified topology
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -15,14 +15,13 @@ const connectDB = async () => {
     console.log(`MongoDB Connected: ${conn.connection.host}`);
 
     // Security: Handle connection errors after initial connection
-    mongoose.connection.on('error', (err) => {
-      console.error('MongoDB connection error:', err);
+    mongoose.connection.on("error", (err) => {
+      console.error("MongoDB connection error:", err);
     });
 
-    mongoose.connection.on('disconnected', () => {
-      console.warn('MongoDB disconnected. Attempting to reconnect...');
+    mongoose.connection.on("disconnected", () => {
+      console.warn("MongoDB disconnected. Attempting to reconnect...");
     });
-
   } catch (error) {
     console.error(`Error: ${error.message}`);
     // Exit process with failure in case of connection error
