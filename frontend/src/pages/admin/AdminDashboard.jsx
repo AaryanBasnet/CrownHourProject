@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { productService, orderService } from '@services';
 import { LoadingSpinner } from '@components';
+import { sanitizeHTML } from '@utils/sanitize';
 
 /**
  * Admin Dashboard
@@ -78,31 +79,28 @@ export const AdminDashboard = () => {
           <div className="flex border-b border-crown-gold/20">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-6 py-4 font-semibold transition-colors ${
-                activeTab === 'overview'
-                  ? 'text-crown-gold border-b-2 border-crown-gold'
-                  : 'text-crown-gray hover:text-crown-gold-light'
-              }`}
+              className={`px-6 py-4 font-semibold transition-colors ${activeTab === 'overview'
+                ? 'text-crown-gold border-b-2 border-crown-gold'
+                : 'text-crown-gray hover:text-crown-gold-light'
+                }`}
             >
               Overview
             </button>
             <button
               onClick={() => setActiveTab('products')}
-              className={`px-6 py-4 font-semibold transition-colors ${
-                activeTab === 'products'
-                  ? 'text-crown-gold border-b-2 border-crown-gold'
-                  : 'text-crown-gray hover:text-crown-gold-light'
-              }`}
+              className={`px-6 py-4 font-semibold transition-colors ${activeTab === 'products'
+                ? 'text-crown-gold border-b-2 border-crown-gold'
+                : 'text-crown-gray hover:text-crown-gold-light'
+                }`}
             >
               Products
             </button>
             <button
               onClick={() => setActiveTab('orders')}
-              className={`px-6 py-4 font-semibold transition-colors ${
-                activeTab === 'orders'
-                  ? 'text-crown-gold border-b-2 border-crown-gold'
-                  : 'text-crown-gray hover:text-crown-gold-light'
-              }`}
+              className={`px-6 py-4 font-semibold transition-colors ${activeTab === 'orders'
+                ? 'text-crown-gold border-b-2 border-crown-gold'
+                : 'text-crown-gray hover:text-crown-gold-light'
+                }`}
             >
               Orders
             </button>
@@ -266,7 +264,7 @@ const StatCard = ({ title, value, icon, loading, alert }) => (
   >
     <div className="flex items-center justify-between mb-4">
       <div className="p-3 bg-crown-gold/10 rounded-full">
-        <div className="text-crown-gold" dangerouslySetInnerHTML={{ __html: icon }} />
+        <div className="text-crown-gold" dangerouslySetInnerHTML={{ __html: sanitizeHTML(icon) }} />
       </div>
     </div>
     <h3 className="text-crown-gray text-sm mb-1">{title}</h3>

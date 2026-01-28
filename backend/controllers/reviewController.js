@@ -260,6 +260,15 @@ const updateReview = async (req, res) => {
 
         await review.populate('user', 'firstName lastName');
 
+        await logUserAction('review_updated', {
+            userId: req.user._id,
+            email: req.user.email,
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent'),
+            resourceId: review._id,
+            metadata: { rating: review.rating },
+        });
+
         res.status(200).json({
             success: true,
             message: 'Review updated successfully',
@@ -309,6 +318,15 @@ const deleteReview = async (req, res) => {
         // Recalculate product rating
         await Review.calculateAverageRating(productId);
 
+        await logUserAction('review_deleted', {
+            userId: req.user._id,
+            email: req.user.email,
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent'),
+            resourceId: review._id,
+            metadata: { productId },
+        });
+
         res.status(200).json({
             success: true,
             message: 'Review deleted successfully',
@@ -342,6 +360,7 @@ const voteHelpful = async (req, res) => {
             });
         }
 
+        let action = '';
         // Check if user already voted
         if (review.helpfulVoters.includes(userId)) {
             // Remove vote
@@ -349,13 +368,25 @@ const voteHelpful = async (req, res) => {
                 voter => voter.toString() !== userId.toString()
             );
             review.helpfulVotes = Math.max(0, review.helpfulVotes - 1);
+            action = 'vote_removed';
         } else {
             // Add vote
             review.helpfulVoters.push(userId);
             review.helpfulVotes += 1;
+            action = 'vote_added';
         }
 
         await review.save();
+
+        // Only log if vote added, maybe? Or both. User said "everything".
+        await logUserAction('review_helpful_vote', {
+            userId: req.user._id,
+            email: req.user.email,
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent'),
+            resourceId: review._id,
+            metadata: { action },
+        });
 
         res.status(200).json({
             success: true,

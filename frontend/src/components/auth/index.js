@@ -5,3 +5,4 @@
 export { RequireAuth } from './RequireAuth';
 export { RequireRole } from './RequireRole';
 export { PublicOnly } from './PublicOnly';
+export { CustomerOnly } from './CustomerOnly';

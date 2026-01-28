@@ -19,6 +19,17 @@ const crypto = require('crypto');
  */
 const signProductUpload = async (req, res) => {
     try {
+        const { fileType } = req.body;
+
+        // Security: Strict Whitelist for MIME types
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (fileType && !allowedTypes.includes(fileType)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid file type. Only JPG, PNG, and WebP are allowed.',
+            });
+        }
+
         // Security: Generate a unique public ID server-side
         // This binds the signature to a ONE-TIME use for this specific filename
         const uniqueId = crypto.randomUUID();
@@ -26,6 +37,9 @@ const signProductUpload = async (req, res) => {
         const signatureData = generateUploadSignature({
             folder: 'crown-hour/products',
             public_id: uniqueId,
+            // Explicitly tell Cloudinary to reject other formats if possible via signed params
+            // (Assuming helper passes this through, standard Cloudinary param is 'allowed_formats')
+            allowed_formats: ['jpg', 'png', 'webp']
         });
 
         res.status(200).json({
@@ -48,6 +62,16 @@ const signProductUpload = async (req, res) => {
  */
 const signProfileUpload = async (req, res) => {
     try {
+        const { fileType } = req.body;
+        // Security: Strict Whitelist
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (fileType && !allowedTypes.includes(fileType)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid file type. Only JPG, PNG, and WebP are allowed.',
+            });
+        }
+
         const userId = req.user._id;
         // Security: Use userId + timestamp for unique profile picture ID
         // This ensures users can't overwrite others' files
@@ -56,6 +80,7 @@ const signProfileUpload = async (req, res) => {
         const signatureData = generateUploadSignature({
             folder: `crown-hour/profiles/${userId}`,
             public_id: uniqueId,
+            allowed_formats: ['jpg', 'png', 'webp']
         });
 
         res.status(200).json({

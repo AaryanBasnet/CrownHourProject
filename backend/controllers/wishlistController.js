@@ -1,5 +1,6 @@
 const Wishlist = require('../models/Wishlist');
 const Product = require('../models/Product');
+const { logUserAction } = require('../utils/auditLogger');
 
 /**
  * Get user wishlist
@@ -51,6 +52,15 @@ const toggleWishlist = async (req, res) => {
 
         // Return *full* updated list (populated) so frontend is immediately synced
         await wishlist.populate('products', 'name slug price images category stock');
+
+        await logUserAction('wishlist_updated', {
+            userId: req.user._id,
+            email: req.user.email,
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent'),
+            resourceId: productId,
+            metadata: { action, productId },
+        });
 
         res.status(200).json({
             success: true,

@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+const crypto = require("crypto");
 
 /**
  * Field-Level Encryption Utility
@@ -8,7 +8,7 @@ const crypto = require('crypto');
  * - Uses AES-256-GCM for authenticated encryption
  * - Prevents unauthorized access to sensitive data even if DB is compromised
  *
- * This demonstrates defense-in-depth security:
+ * Development Note: This demonstrates defense-in-depth security:
  * 1. Passwords are hashed (one-way, cannot be decrypted)
  * 2. PII like phone numbers are encrypted (two-way, can be decrypted with key)
  * 3. Encryption key stored separately from database (environment variable)
@@ -22,16 +22,20 @@ const crypto = require('crypto');
 /**
  * Encryption algorithm and key
  */
-const ALGORITHM = 'aes-256-gcm';
+const ALGORITHM = "aes-256-gcm";
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 
 // Security: Validate encryption key on module load
 if (!ENCRYPTION_KEY) {
-  console.warn('WARNING: ENCRYPTION_KEY not set. Field-level encryption disabled.');
+  console.warn(
+    "WARNING: ENCRYPTION_KEY not set. Field-level encryption disabled.",
+  );
 }
 
 if (ENCRYPTION_KEY && ENCRYPTION_KEY.length !== 64) {
-  throw new Error('ENCRYPTION_KEY must be a 64-character hex string (32 bytes)');
+  throw new Error(
+    "ENCRYPTION_KEY must be a 64-character hex string (32 bytes)",
+  );
 }
 
 /**
@@ -53,7 +57,7 @@ const encrypt = (text) => {
 
     // Security: If no encryption key, return plain text (with warning)
     if (!ENCRYPTION_KEY) {
-      console.warn('Encryption key not available. Storing data unencrypted.');
+      console.warn("Encryption key not available. Storing data unencrypted.");
       return text;
     }
 
@@ -62,24 +66,24 @@ const encrypt = (text) => {
     const iv = crypto.randomBytes(16);
 
     // Convert hex key to buffer
-    const keyBuffer = Buffer.from(ENCRYPTION_KEY, 'hex');
+    const keyBuffer = Buffer.from(ENCRYPTION_KEY, "hex");
 
     // Create cipher
     const cipher = crypto.createCipheriv(ALGORITHM, keyBuffer, iv);
 
     // Encrypt the text
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
+    let encrypted = cipher.update(text, "utf8", "hex");
+    encrypted += cipher.final("hex");
 
     // Security: Get authentication tag for GCM mode
     // This prevents tampering with encrypted data
     const authTag = cipher.getAuthTag();
 
     // Return format: iv:authTag:encryptedData
-    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+    return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
   } catch (error) {
-    console.error('Encryption error:', error.message);
-    throw new Error('Failed to encrypt data');
+    console.error("Encryption error:", error.message);
+    throw new Error("Failed to encrypt data");
   }
 };
 
@@ -105,18 +109,18 @@ const decrypt = (encryptedText) => {
     }
 
     // Parse encrypted format: iv:authTag:encryptedData
-    const parts = encryptedText.split(':');
+    const parts = encryptedText.split(":");
     if (parts.length !== 3) {
       // Data might not be encrypted (backward compatibility)
       return encryptedText;
     }
 
-    const iv = Buffer.from(parts[0], 'hex');
-    const authTag = Buffer.from(parts[1], 'hex');
+    const iv = Buffer.from(parts[0], "hex");
+    const authTag = Buffer.from(parts[1], "hex");
     const encrypted = parts[2];
 
     // Convert hex key to buffer
-    const keyBuffer = Buffer.from(ENCRYPTION_KEY, 'hex');
+    const keyBuffer = Buffer.from(ENCRYPTION_KEY, "hex");
 
     // Create decipher
     const decipher = crypto.createDecipheriv(ALGORITHM, keyBuffer, iv);
@@ -125,14 +129,16 @@ const decrypt = (encryptedText) => {
     decipher.setAuthTag(authTag);
 
     // Decrypt the data
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
+    let decrypted = decipher.update(encrypted, "hex", "utf8");
+    decrypted += decipher.final("utf8");
 
     return decrypted;
   } catch (error) {
     // Security: If decryption fails, data may be corrupted or tampered
-    console.error('Decryption error:', error.message);
-    throw new Error('Failed to decrypt data - possible data corruption or tampering');
+    console.error("Decryption error:", error.message);
+    throw new Error(
+      "Failed to decrypt data - possible data corruption or tampering",
+    );
   }
 };
 
@@ -143,11 +149,11 @@ const decrypt = (encryptedText) => {
  * @returns {Boolean} True if value appears to be encrypted
  */
 const isEncrypted = (value) => {
-  if (!value || typeof value !== 'string') return false;
+  if (!value || typeof value !== "string") return false;
 
   // Check for our encryption format: iv:authTag:encryptedData
-  const parts = value.split(':');
-  return parts.length === 3 && parts.every(part => /^[0-9a-f]+$/i.test(part));
+  const parts = value.split(":");
+  return parts.length === 3 && parts.every((part) => /^[0-9a-f]+$/i.test(part));
 };
 
 module.exports = {

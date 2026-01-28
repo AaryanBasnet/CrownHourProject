@@ -49,12 +49,14 @@ const Toast = ({ message, type, onClose }) => {
         success: <CheckCircle className="w-5 h-5 text-green-500" />,
         error: <AlertCircle className="w-5 h-5 text-red-500" />,
         info: <Info className="w-5 h-5 text-blue-500" />,
+        warning: <AlertCircle className="w-5 h-5 text-yellow-500" />,
     };
 
     const bgColors = {
         success: 'bg-white border-green-100',
         error: 'bg-white border-red-100',
         info: 'bg-white border-blue-100',
+        warning: 'bg-white border-yellow-100',
     };
 
     return (

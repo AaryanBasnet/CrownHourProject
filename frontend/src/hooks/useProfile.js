@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import api from '../api/axios';
 import { useToast } from '../context/ToastContext';
+import { sanitizeObject, containsMaliciousContent } from '../utils/sanitize';
 
 export const useProfile = () => {
     const { user, refreshUser } = useAuthStore();
@@ -88,9 +89,28 @@ export const useProfile = () => {
 
     const updateProfile = async (e) => {
         e.preventDefault();
+
+        // Security check: Detect if user is attempting to enter scripts
+        // This provides better UX than just failing with a 'required' error if tags are stripped
+        const checkMalicious = (obj) => {
+            for (const value of Object.values(obj)) {
+                if (typeof value === 'object' && value !== null) {
+                    if (checkMalicious(value)) return true;
+                } else if (typeof value === 'string') {
+                    if (containsMaliciousContent(value)) return true;
+                }
+            }
+            return false;
+        };
+
+        if (checkMalicious(profileData)) {
+            addToast('Security Warning: Potentially unsafe content detected and removed.', 'warning');
+        }
+
         setLoading(true);
         try {
-            await api.put(`/users/${user.id}`, profileData);
+            const cleanData = sanitizeObject(profileData);
+            await api.put(`/users/${user.id}`, cleanData);
             await refreshUser();
             addToast('Profile updated successfully', 'success');
         } catch (error) {

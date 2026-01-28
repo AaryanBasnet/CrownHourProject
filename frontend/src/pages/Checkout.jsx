@@ -7,6 +7,7 @@ import { CheckoutForm } from '../components/checkout/CheckoutForm';
 import { useAuthStore } from '@store/authStore';
 import { useToast } from '../context/ToastContext';
 import { Loader2, ArrowRight, Check } from 'lucide-react';
+import { sanitizeObject } from '../utils/sanitize';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
@@ -75,11 +76,14 @@ export const Checkout = () => {
 
         setIsLoading(true);
         try {
+            // Sanitize all text input fields
+            const cleanFormData = sanitizeObject(formData);
+
             // Construct the shipping address object expected by backend/Stripe
             const shippingAddress = {
-                name: `${formData.firstName} ${formData.lastName}`,
-                address: formData.address,
-                phone: formData.phone
+                name: `${cleanFormData.firstName} ${cleanFormData.lastName}`,
+                address: cleanFormData.address,
+                phone: cleanFormData.phone
             };
 
             const data = await paymentService.createPaymentIntent(items, shippingAddress);

@@ -41,7 +41,7 @@ export const Pagination = ({ currentPage, totalPages, onPageChange }) => {
             <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="w-10 h-10 border border-black/10 text-[#1A1A1A] flex items-center justify-center hover:border-[#C9A962] hover:text-[#C9A962] transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-black/10 disabled:hover:text-[#1A1A1A]"
+                className="w-10 h-10 border border-black/10 text-text-dark flex items-center justify-center hover:border-gold hover:text-[#C9A962] transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-black/10 disabled:hover:text-[#1A1A1A]"
                 aria-label="Previous page"
             >
                 <ChevronLeft size={18} />
@@ -49,7 +49,7 @@ export const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 
             {getPageNumbers().map((page, index) => (
                 page === '...' ? (
-                    <span key={`ellipsis-${index}`} className="w-10 h-10 flex items-center justify-center text-[#6B6B6B]">
+                    <span key={`ellipsis-${index}`} className="w-10 h-10 flex items-center justify-center text-text-muted">
                         ...
                     </span>
                 ) : (

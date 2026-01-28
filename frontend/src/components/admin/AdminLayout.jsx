@@ -21,6 +21,7 @@ import ProductCreate from '../../pages/admin/ProductCreate';
 import ProductEdit from '../../pages/admin/ProductEdit';
 import ReviewsManagement from '../../pages/admin/ReviewsManagement';
 import AuditLogs from '../../pages/admin/AuditLogs';
+import AdminNotFound from '../../pages/admin/AdminNotFound';
 
 /**
  * Admin Layout Component
@@ -141,6 +142,7 @@ const AdminLayout = () => {
                         <Route path="orders" element={<OrdersManagement />} />
                         <Route path="reviews" element={<ReviewsManagement />} />
                         <Route path="audit-logs" element={<AuditLogs />} />
+                        <Route path="*" element={<AdminNotFound />} />
                     </Routes>
                 </main>
             </div>
