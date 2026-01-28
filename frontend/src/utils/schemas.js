@@ -47,15 +47,45 @@ export const registerSchema = z.object({
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],
+  path: ['confirmPassword'],
+});
+
+// Reset Password Schema
+export const resetPasswordSchema = z.object({
+  password: z
+    .string()
+    .min(1, 'Password is required')
+    .min(8, 'Password must be at least 8 characters')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]/,
+      'Password must contain uppercase, lowercase, number, and special character'
+    ),
+  confirmPassword: z
+    .string()
+    .min(1, 'Please confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
 });
 
 // MFA Verification Schema
+// Accepts both 6-digit TOTP codes (123456) and 8-character backup codes (A1B2C3D4)
 export const mfaSchema = z.object({
   mfaToken: z
     .string()
     .min(1, 'Verification code is required')
-    .length(6, 'Code must be exactly 6 digits')
-    .regex(/^\d{6}$/, 'Code must contain only numbers'),
+    .refine(
+      (val) => {
+        // Accept 6-digit TOTP code (numeric only)
+        if (/^\d{6}$/.test(val)) return true;
+        // Accept 8-character backup code (alphanumeric, case-insensitive)
+        if (/^[A-Za-z0-9]{8}$/.test(val)) return true;
+        return false;
+      },
+      {
+        message: 'Code must be either a 6-digit code or 8-character backup code',
+      }
+    ),
 });
 
 // Product Schema (for admin)

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { Heart } from 'lucide-react';
+import { sanitizeHTML } from '../../utils/sanitize';
 import { useWishlistStore } from '../../store/wishlistStore';
 
 /**
@@ -64,9 +65,10 @@ export const ProductInfo = ({
             </div>
 
             {/* Description */}
-            <p className="text-[#6B6B6B] text-lg leading-relaxed mb-8 pb-8 border-b border-black/5">
-                {product.description}
-            </p>
+            <div
+                className="text-[#6B6B6B] text-lg leading-relaxed mb-8 pb-8 border-b border-black/5"
+                dangerouslySetInnerHTML={{ __html: sanitizeHTML(product.description) }}
+            />
 
             {/* Color Options */}
             {product.variants?.colors?.length > 0 && (
@@ -135,8 +137,8 @@ export const ProductInfo = ({
                 <button
                     onClick={onAddToWishlist}
                     className={`w-14 border flex items-center justify-center transition-all ${inWishlist
-                            ? 'border-red-500 bg-red-50 text-red-500'
-                            : 'border-black/10 hover:border-[#C9A962] hover:text-[#C9A962]'
+                        ? 'border-red-500 bg-red-50 text-red-500'
+                        : 'border-black/10 hover:border-[#C9A962] hover:text-[#C9A962]'
                         }`}
                     aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
                 >

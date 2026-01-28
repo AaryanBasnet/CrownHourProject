@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Star, ThumbsUp, Loader2 } from 'lucide-react';
 import { reviewService } from '@services';
 import { useToast } from '../../context/ToastContext';
-import { sanitizeUserContent } from '@utils/sanitize';
+import { sanitizeUserContent, sanitizeObject, containsMaliciousContent } from '@utils/sanitize';
 
 /**
  * ReviewSection Component
@@ -43,11 +43,17 @@ export const ReviewSection = ({
             return;
         }
 
+        // Security check: Detect if user is attempting to enter scripts
+        if (containsMaliciousContent(formData.title) || containsMaliciousContent(formData.comment)) {
+            addToast('Security Warning: Potentially unsafe content detected and removed.', 'warning');
+        }
+
         setIsSubmitting(true);
         try {
+            const cleanData = sanitizeObject(formData);
             await reviewService.createReview({
                 productId,
-                ...formData,
+                ...cleanData,
             });
             addToast('Review submitted successfully!', 'success');
             setShowForm(false);
@@ -238,10 +244,10 @@ export const ReviewSection = ({
                                 </span>
                             </div>
 
-                            <p className="text-[#6B6B6B] mb-4">
-                                {/* Using plain text since reviews are sanitized on backend */}
-                                {review.comment}
-                            </p>
+                            <div
+                                className="text-[#6B6B6B] mb-4 text-sm leading-relaxed"
+                                dangerouslySetInnerHTML={{ __html: sanitizeUserContent(review.comment) }}
+                            />
 
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-[#6B6B6B]">

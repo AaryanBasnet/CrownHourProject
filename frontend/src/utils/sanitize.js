@@ -56,6 +56,51 @@ export const sanitizeUserContent = (dirty) => {
 };
 
 /**
+ * Sanitize a single value
+ * If string, strips all HTML by default.
+ * @param {any} value - Value to sanitize
+ * @returns {any} Sanitized value
+ */
+export const sanitizeValue = (value) => {
+    if (typeof value !== 'string') return value;
+    return DOMPurify.sanitize(value, { ALLOWED_TAGS: [] });
+};
+
+/**
+ * Checks if a string contains potentially malicious HTML/Scripts
+ * @param {string} dirty 
+ * @returns {boolean} True if malicious content was found and stripped
+ */
+export const containsMaliciousContent = (dirty) => {
+    if (typeof dirty !== 'string') return false;
+    const clean = DOMPurify.sanitize(dirty, { ALLOWED_TAGS: [] });
+    // If the string contains tags and they are being changed/stripped, it's potentially malicious
+    return dirty.includes('<') && dirty !== clean;
+};
+
+/**
+ * Sanitize an entire object (recursively)
+ * Useful for sanitizing form data before submission
+ * @param {object} obj - Object to sanitize
+ * @returns {object} New object with sanitized strings
+ */
+export const sanitizeObject = (obj) => {
+    if (obj === null || typeof obj !== 'object') {
+        return sanitizeValue(obj);
+    }
+
+    if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeObject(item));
+    }
+
+    const sanitized = {};
+    for (const [key, value] of Object.entries(obj)) {
+        sanitized[key] = sanitizeObject(value);
+    }
+    return sanitized;
+};
+
+/**
  * Example usage:
  * 
  * // For rich text content
@@ -64,6 +109,7 @@ export const sanitizeUserContent = (dirty) => {
  * // For user reviews
  * <div dangerouslySetInnerHTML={{ __html: sanitizeUserContent(review) }} />
  * 
- * // For plain text extraction
- * const text = sanitizeText(htmlString);
+ * // Before submitting a form
+ * const cleanData = sanitizeObject(formData);
+ * await api.post('/endpoint', cleanData);
  */
