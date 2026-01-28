@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const { logSecurityEvent } = require('../utils/auditLogger');
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const { logSecurityEvent } = require("../utils/auditLogger");
 
 /**
  * Authentication Middleware
@@ -25,24 +25,27 @@ const protect = async (req, res, next) => {
     let token;
 
     // Security: Check for token in Authorization header or HTTP-only cookie
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
     } else if (req.cookies && req.cookies.token) {
       token = req.cookies.token;
     }
 
     if (!token) {
       // Log unauthorized access attempt
-      await logSecurityEvent('unauthorized_access_attempt', {
-        email: 'unknown',
+      await logSecurityEvent("unauthorized_access_attempt", {
+        email: "unknown",
         ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
+        userAgent: req.get("user-agent"),
         metadata: { path: req.path, method: req.method },
       });
 
       return res.status(401).json({
         success: false,
-        message: 'Not authorized to access this route',
+        message: "Not authorized to access this route",
       });
     }
 
@@ -52,45 +55,45 @@ const protect = async (req, res, next) => {
 
       // Get user from token and attach to request
       const user = await User.findById(decoded.id)
-        .populate('role')
-        .select('-password -mfaSecret');
+        .populate("role")
+        .select("-password -mfaSecret");
 
       if (!user) {
         return res.status(401).json({
           success: false,
-          message: 'User not found',
+          message: "User not found",
         });
       }
 
       // Security: Check if user account is active
       if (!user.isActive) {
-        await logSecurityEvent('unauthorized_access_attempt', {
+        await logSecurityEvent("unauthorized_access_attempt", {
           userId: user._id,
           email: user.email,
           ipAddress: req.ip,
-          userAgent: req.get('user-agent'),
-          metadata: { reason: 'inactive_account' },
+          userAgent: req.get("user-agent"),
+          metadata: { reason: "inactive_account" },
         });
 
         return res.status(401).json({
           success: false,
-          message: 'Account is inactive',
+          message: "Account is inactive",
         });
       }
 
       // Security: Check if account is locked
       if (user.isLocked) {
-        await logSecurityEvent('unauthorized_access_attempt', {
+        await logSecurityEvent("unauthorized_access_attempt", {
           userId: user._id,
           email: user.email,
           ipAddress: req.ip,
-          userAgent: req.get('user-agent'),
-          metadata: { reason: 'account_locked' },
+          userAgent: req.get("user-agent"),
+          metadata: { reason: "account_locked" },
         });
 
         return res.status(401).json({
           success: false,
-          message: 'Account is locked due to too many failed login attempts',
+          message: "Account is locked due to too many failed login attempts",
         });
       }
 
@@ -100,47 +103,91 @@ const protect = async (req, res, next) => {
       const userTokenVersion = user.tokenVersion || 0;
 
       if (tokenVersion !== userTokenVersion) {
-        await logSecurityEvent('unauthorized_access_attempt', {
+        await logSecurityEvent("unauthorized_access_attempt", {
           userId: user._id,
           email: user.email,
           ipAddress: req.ip,
-          userAgent: req.get('user-agent'),
+          userAgent: req.get("user-agent"),
           metadata: {
-            reason: 'token_version_mismatch',
+            reason: "token_version_mismatch",
             tokenVersion,
-            currentVersion: userTokenVersion
+            currentVersion: userTokenVersion,
           },
         });
 
         return res.status(401).json({
           success: false,
-          message: 'Token has been revoked. Please login again.',
+          message: "Token has been revoked. Please login again.",
         });
       }
+
+      // Security: Enforce session validation for automatic idle timeout
+      // If no session exists or session user doesn't match JWT user, deny access
+      if (!req.session || !req.session.userId) {
+        console.warn(
+          `[Auth] Session missing or userId not in session for user: ${user.email}`,
+        );
+        await logSecurityEvent("unauthorized_access_attempt", {
+          userId: user._id,
+          email: user.email,
+          ipAddress: req.ip,
+          userAgent: req.get("user-agent"),
+          metadata: { reason: "session_expired_or_missing" },
+        });
+
+        return res.status(401).json({
+          success: false,
+          message: "Your session has expired. Please login again.",
+          code: "SESSION_EXPIRED",
+        });
+      }
+
+      // Security: Validate session user matches JWT user
+      if (req.session.userId !== user._id.toString()) {
+        console.warn(
+          `[Auth] Session user mismatch. Session: ${req.session.userId}, JWT: ${user._id}`,
+        );
+        await logSecurityEvent("unauthorized_access_attempt", {
+          userId: user._id,
+          email: user.email,
+          ipAddress: req.ip,
+          userAgent: req.get("user-agent"),
+          metadata: { reason: "session_user_mismatch" },
+        });
+
+        return res.status(401).json({
+          success: false,
+          message: "Session validation failed. Please login again.",
+          code: "SESSION_MISMATCH",
+        });
+      }
+
+      // Update last activity timestamp (keep session alive)
+      req.session.lastActivity = new Date().toISOString();
 
       // Attach user to request
       req.user = user;
       next();
     } catch (error) {
-      if (error.name === 'TokenExpiredError') {
+      if (error.name === "TokenExpiredError") {
         return res.status(401).json({
           success: false,
-          message: 'Token has expired',
+          message: "Token has expired",
         });
-      } else if (error.name === 'JsonWebTokenError') {
+      } else if (error.name === "JsonWebTokenError") {
         return res.status(401).json({
           success: false,
-          message: 'Invalid token',
+          message: "Invalid token",
         });
       } else {
         throw error;
       }
     }
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    console.error("Auth middleware error:", error);
     return res.status(500).json({
       success: false,
-      message: 'Server error during authentication',
+      message: "Server error during authentication",
     });
   }
 };
@@ -152,8 +199,11 @@ const optionalAuth = async (req, res, next) => {
   try {
     let token;
 
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
     } else if (req.cookies && req.cookies.token) {
       token = req.cookies.token;
     }
@@ -162,8 +212,8 @@ const optionalAuth = async (req, res, next) => {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.id)
-          .populate('role')
-          .select('-password -mfaSecret');
+          .populate("role")
+          .select("-password -mfaSecret");
 
         if (user && user.isActive && !user.isLocked) {
           req.user = user;
@@ -175,7 +225,7 @@ const optionalAuth = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Optional auth middleware error:', error);
+    console.error("Optional auth middleware error:", error);
     next();
   }
 };
@@ -189,7 +239,7 @@ const restrictTo = (...roles) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Not authenticated',
+        message: "Not authenticated",
       });
     }
 
@@ -198,7 +248,7 @@ const restrictTo = (...roles) => {
     if (!roles.includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: 'You do not have permission to perform this action',
+        message: "You do not have permission to perform this action",
       });
     }
 

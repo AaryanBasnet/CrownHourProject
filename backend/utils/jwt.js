@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
 /**
  * JWT Utility Functions
@@ -33,7 +33,10 @@ const generateToken = (user) => {
   };
 
   const options = {
-    expiresIn: process.env.JWT_EXPIRE || '7d',
+    // Security: JWT expiry is the MAXIMUM session duration (absolute timeout)
+    // Session expiry (2 min rolling) handles IDLE timeout
+    // JWT should be longer than session to allow session renewal
+    expiresIn: process.env.JWT_EXPIRE || "1h",
   };
 
   return jwt.sign(payload, process.env.JWT_SECRET, options);
@@ -49,12 +52,12 @@ const verifyToken = (token) => {
   try {
     return jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      throw new Error('Token has expired');
-    } else if (error.name === 'JsonWebTokenError') {
-      throw new Error('Invalid token');
+    if (error.name === "TokenExpiredError") {
+      throw new Error("Token has expired");
+    } else if (error.name === "JsonWebTokenError") {
+      throw new Error("Invalid token");
     } else {
-      throw new Error('Token verification failed');
+      throw new Error("Token verification failed");
     }
   }
 };
@@ -67,11 +70,11 @@ const verifyToken = (token) => {
 const generateRefreshToken = (user) => {
   const payload = {
     id: user._id,
-    type: 'refresh',
+    type: "refresh",
   };
 
   const options = {
-    expiresIn: '30d',
+    expiresIn: "30d",
   };
 
   return jwt.sign(payload, process.env.JWT_SECRET, options);
