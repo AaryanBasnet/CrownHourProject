@@ -1,49 +1,60 @@
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import zxcvbn from 'zxcvbn';
 
-const PasswordStrengthMeter = ({ password = '' }) => {
-    const calculateStrength = (pwd) => {
-        let strength = 0;
-        if (pwd.length > 5) strength += 1;
-        if (pwd.length > 7) strength += 1;
-        if (/[A-Z]/.test(pwd)) strength += 1;
-        if (/[0-9]/.test(pwd)) strength += 1;
-        if (/[^A-Za-z0-9]/.test(pwd)) strength += 1;
-        return strength;
+const PasswordStrengthMeter = ({ password, onStrengthChange }) => {
+    const [strength, setStrength] = useState(0);
+    const [feedback, setFeedback] = useState([]);
+
+    useEffect(() => {
+        if (!password) {
+            setStrength(0);
+            setFeedback([]);
+            onStrengthChange && onStrengthChange(0);
+            return;
+        }
+
+        const result = zxcvbn(password);
+        setStrength(result.score); // 0-4
+        setFeedback(result.feedback.suggestions || []);
+        onStrengthChange && onStrengthChange(result.score);
+    }, [password, onStrengthChange]);
+
+    const getColor = () => {
+        switch (strength) {
+            case 0: return 'bg-red-500';
+            case 1: return 'bg-red-400';
+            case 2: return 'bg-yellow-500';
+            case 3: return 'bg-blue-400';
+            case 4: return 'bg-green-500';
+            default: return 'bg-gray-200';
+        }
     };
 
-    const strength = calculateStrength(password);
-
-    const getStrengthColor = (s) => {
-        if (s === 0) return 'bg-gray-200';
-        if (s <= 2) return 'bg-red-500';
-        if (s <= 4) return 'bg-yellow-500';
-        return 'bg-green-500';
+    const getLabel = () => {
+        switch (strength) {
+            case 0: return 'Very Weak';
+            case 1: return 'Weak';
+            case 2: return 'Fair';
+            case 3: return 'Good';
+            case 4: return 'Strong';
+            default: return '';
+        }
     };
-
-    const getStrengthLabel = (s) => {
-        if (s === 0) return '';
-        if (s <= 2) return 'Weak';
-        if (s <= 4) return 'Medium';
-        return 'Strong';
-    };
-
-    if (!password) return null;
 
     return (
-        <div className="mt-2 space-y-1">
-            <div className="flex gap-1 h-1">
-                {[1, 2, 3, 4, 5].map((level) => (
-                    <div
-                        key={level}
-                        className={`flex-1 rounded-full transition-colors duration-300 ${strength >= level ? getStrengthColor(strength) : 'bg-gray-100'
-                            }`}
-                    />
-                ))}
+        <div className="mt-2">
+            <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-crown-gray font-medium">Strength: {getLabel()}</span>
             </div>
-            <p className={`text-xs text-right font-medium ${strength <= 2 ? 'text-red-500' : strength <= 4 ? 'text-yellow-600' : 'text-green-600'
-                }`}>
-                {getStrengthLabel(strength)}
-            </p>
+            <div className="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
+                <div
+                    className={`h-full transition-all duration-300 ${getColor()}`}
+                    style={{ width: `${(strength + 1) * 20}%` }}
+                />
+            </div>
+            {feedback.length > 0 && (
+                <p className="text-xs text-gray-400 mt-1">{feedback[0]}</p>
+            )}
         </div>
     );
 };
