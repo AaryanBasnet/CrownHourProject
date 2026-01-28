@@ -1,4 +1,4 @@
-const { z } = require('zod');
+const { z } = require("zod");
 
 /**
  * Zod Schema Validation Middleware
@@ -9,7 +9,7 @@ const { z } = require('zod');
  * - Strips unknown fields to prevent Mass Assignment attacks
  * - Provides detailed validation errors for debugging
  *
- *  This demonstrates defense-in-depth by adding
+ * Development Note: This demonstrates defense-in-depth by adding
  * schema validation BEFORE the existing validation middleware.
  * Multiple layers of validation provide stronger security.
  *
@@ -42,23 +42,23 @@ const validateResource = (schema) => {
     } catch (error) {
       // Handle Zod validation errors
       if (error instanceof z.ZodError) {
-        const formattedErrors = error.errors.map(err => ({
-          field: err.path.join('.'),
+        const formattedErrors = error.errors.map((err) => ({
+          field: err.path.join("."),
           message: err.message,
         }));
 
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: formattedErrors,
         });
       }
 
       // Handle unexpected errors
-      console.error('Validation middleware error:', error);
+      console.error("Validation middleware error:", error);
       return res.status(500).json({
         success: false,
-        message: 'Server error during validation',
+        message: "Server error during validation",
       });
     }
   };

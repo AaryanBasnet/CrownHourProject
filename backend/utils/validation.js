@@ -26,7 +26,7 @@ const isValidEmail = (email) => {
 const validatePassword = (password) => {
   const errors = [];
 
-  if (!password || password.length < 8) {
+  if (!password || password.length < 12) {
     errors.push('Password must be at least 8 characters long');
   }
   if (!/[A-Z]/.test(password)) {

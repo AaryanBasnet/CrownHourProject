@@ -108,6 +108,62 @@ const validatePasswordChange = (req, res, next) => {
 };
 
 /**
+ * Validate forgot password input
+ */
+const validateForgotPassword = (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide an email address',
+    });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a valid email address',
+    });
+  }
+
+  next();
+};
+
+/**
+ * Validate reset password input
+ */
+const validateResetPassword = (req, res, next) => {
+  const { password } = req.body;
+  const { token } = req.params;
+
+  if (!token) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid password reset token',
+    });
+  }
+
+  if (!password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a new password',
+    });
+  }
+
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.valid) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password does not meet requirements',
+      errors: passwordValidation.errors,
+    });
+  }
+
+  next();
+};
+
+/**
  * Validate product creation/update input
  */
 const validateProduct = (req, res, next) => {
@@ -217,4 +273,6 @@ module.exports = {
   validateProduct,
   validateObjectId,
   validateOrder,
+  validateForgotPassword,
+  validateResetPassword,
 };
