@@ -11,7 +11,7 @@ export const PublicOnly = ({ children }) => {
 
   if (isLoggedIn) {
     // Redirect based on role
-    const destination = role === 'admin' ? '/admin' : '/shop';
+    const destination = role === 'admin' ? '/admin' : '/';
     return <Navigate to={destination} replace />;
   }
 
