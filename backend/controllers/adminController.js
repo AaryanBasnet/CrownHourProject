@@ -544,13 +544,30 @@ exports.getAuditLogs = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
-        const eventType = req.query.eventType || '';
+        const eventType = req.query.eventType || ''; // Frontend sends 'eventType', backend maps to 'action'
+        const search = req.query.search || '';
 
         const filter = {};
-        if (eventType) filter.eventType = eventType;
+        if (eventType) {
+            filter.action = eventType;
+        }
+
+        if (search) {
+            filter.$or = [
+                { email: { $regex: search, $options: 'i' } },
+                { action: { $regex: search, $options: 'i' } },
+                { ipAddress: { $regex: search, $options: 'i' } },
+                { resource: { $regex: search, $options: 'i' } },
+            ];
+
+            // If search is a valid ObjectId, check resourceId and user ID
+            if (search.match(/^[0-9a-fA-F]{24}$/)) {
+                filter.$or.push({ resourceId: search }, { user: search });
+            }
+        }
 
         const query = AuditLog.find(filter)
-            .sort({ timestamp: -1 })
+            .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit);
 

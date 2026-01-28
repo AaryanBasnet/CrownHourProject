@@ -5,6 +5,7 @@ import { formatDateTime } from '../../utils/formatters';
 import {
     AdminPageHeader,
     AdminCard,
+    AdminSearch,
     AdminFilter,
     AdminBadge,
     Pagination
@@ -19,9 +20,10 @@ import {
 const AuditLogs = () => {
     const [page, setPage] = useState(1);
     const [eventType, setEventType] = useState('');
+    const [search, setSearch] = useState('');
     const limit = 20;
 
-    const { data, isLoading, error } = useAuditLogs({ page, limit, eventType });
+    const { data, isLoading, error } = useAuditLogs({ page, limit, eventType, search });
 
     if (error) {
         return (
@@ -72,7 +74,15 @@ const AuditLogs = () => {
             />
 
             {/* Filters */}
-            <div className="flex mb-8">
+            <div className="flex flex-col md:flex-row gap-4 mb-8">
+                <AdminSearch
+                    value={search}
+                    onChange={(e) => {
+                        setSearch(e.target.value);
+                        setPage(1);
+                    }}
+                    placeholder="Search logs..."
+                />
                 <AdminFilter
                     value={eventType}
                     onChange={(e) => {
@@ -84,7 +94,7 @@ const AuditLogs = () => {
                 />
             </div>
 
-            {/* Audit Logs List */}
+            {/* Audit Logs Table */}
             <AdminCard>
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center p-16 text-gray-500">
@@ -92,64 +102,87 @@ const AuditLogs = () => {
                         <p>Loading audit logs...</p>
                     </div>
                 ) : logs.length > 0 ? (
-                    <div className="divide-y divide-[#C9A962]/10">
-                        {logs.map((log) => (
-                            <div key={log._id} className="p-6 hover:bg-[#FAF8F5]/50 transition-colors">
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <AdminBadge variant={getEventBadgeVariant(log.eventType)}>
-                                            {(log.eventType || 'unknown').replace(/_/g, ' ')}
-                                        </AdminBadge>
-                                        <span className="text-sm text-gray-500 font-medium">
-                                            {formatDateTime(log.timestamp)}
-                                        </span>
-                                    </div>
-
-                                    {(log.eventType?.includes('failed') || log.eventType?.includes('unauthorized')) && (
-                                        <div className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-1 rounded-full text-sm font-medium">
-                                            <AlertCircle size={16} />
-                                            <span>Security Event</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 text-sm">
-                                    {log.userId && (
-                                        <div className="flex flex-col">
-                                            <span className="text-gray-500">User ID</span>
-                                            <span className="font-mono text-gray-700">{log.userId}</span>
-                                        </div>
-                                    )}
-                                    {log.email && (
-                                        <div className="flex flex-col">
-                                            <span className="text-gray-500">Email</span>
-                                            <span className="font-medium text-gray-900">{log.email}</span>
-                                        </div>
-                                    )}
-                                    {log.ipAddress && (
-                                        <div className="flex flex-col">
-                                            <span className="text-gray-500">IP Address</span>
-                                            <span className="font-mono text-gray-700">{log.ipAddress}</span>
-                                        </div>
-                                    )}
-                                    {log.userAgent && (
-                                        <div className="flex flex-col">
-                                            <span className="text-gray-500">User Agent</span>
-                                            <span className="text-gray-700 truncate" title={log.userAgent}>{log.userAgent}</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {log.metadata && Object.keys(log.metadata).length > 0 && (
-                                    <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Additional Details</p>
-                                        <pre className="text-xs text-gray-700 font-mono whitespace-pre-wrap overflow-x-auto">
-                                            {JSON.stringify(log.metadata, null, 2)}
-                                        </pre>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-[#FAF8F5] text-xs uppercase text-gray-500 font-medium border-b border-[#C9A962]/10">
+                                    <th className="px-6 py-4">Event & Status</th>
+                                    <th className="px-6 py-4">User</th>
+                                    <th className="px-6 py-4">Resource</th>
+                                    <th className="px-6 py-4">IP Address</th>
+                                    <th className="px-6 py-4">Date</th>
+                                    <th className="px-6 py-4">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#C9A962]/10">
+                                {logs.map((log) => (
+                                    <tr key={log._id} className="hover:bg-[#FAF8F5]/50 transition-colors text-sm">
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-gray-900">
+                                                        {(log.action || log.eventType || 'unknown').replace(/_/g, ' ')}
+                                                    </span>
+                                                    {(log.eventType?.includes('failed') || log.eventType?.includes('unauthorized') || log.status === 'failure') && (
+                                                        <AlertCircle size={14} className="text-red-500" />
+                                                    )}
+                                                </div>
+                                                <AdminBadge variant={getEventBadgeVariant(log.eventType || log.action)}>
+                                                    {log.status || 'unknown'}
+                                                </AdminBadge>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-gray-900">{log.email || 'Unknown'}</span>
+                                                {log.userId && (
+                                                    <span className="text-xs text-gray-400 font-mono" title={log.userId}>
+                                                        {log.userId.substring(0, 8)}...
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="capitalize text-gray-700">{log.resource || '-'}</span>
+                                                {log.resourceId && (
+                                                    <span className="text-xs text-gray-400 font-mono">
+                                                        {log.resourceId.toString().substring(0, 8)}...
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-mono text-gray-600">{log.ipAddress}</span>
+                                                <span className="text-xs text-gray-400 truncate max-w-[150px]" title={log.userAgent}>
+                                                    {log.userAgent}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
+                                            {formatDateTime(log.timestamp || log.createdAt)}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {log.metadata && Object.keys(log.metadata).length > 0 ? (
+                                                <details className="group">
+                                                    <summary className="text-xs text-[#C9A962] cursor-pointer hover:text-[#E8D5A3] font-medium focus:outline-none">
+                                                        View Metadata
+                                                    </summary>
+                                                    <div className="absolute right-10 mt-2 w-64 p-3 bg-white border border-[#C9A962]/20 rounded-xl shadow-lg z-10 hidden group-open:block">
+                                                        <pre className="text-xs text-gray-600 overflow-auto max-h-48 whitespace-pre-wrap">
+                                                            {JSON.stringify(log.metadata, null, 2)}
+                                                        </pre>
+                                                    </div>
+                                                </details>
+                                            ) : (
+                                                <span className="text-gray-400 text-xs">-</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 ) : (
                     <div className="p-16 text-center text-gray-500">
