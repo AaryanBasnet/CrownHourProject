@@ -120,11 +120,14 @@ export const useAuthStore = create(
        * - 401 interceptor triggers
        * - Session expires
        */
-      logout: () => {
+      logout: async () => {
         // Call backend logout endpoint to clear cookies
-        apiClient.post('/auth/logout').catch(() => {
+        try {
+          await apiClient.post('/auth/logout');
+        } catch (error) {
+          console.error('Logout API call failed:', error);
           // Ignore errors, logout locally anyway
-        });
+        }
 
         // Clear Zustand state
         set({
@@ -136,6 +139,28 @@ export const useAuthStore = create(
 
         // Clear React Query cache (must be done in App.jsx after logout)
         // This is handled by the component that calls logout
+      },
+
+      /**
+       * Logout from all devices
+       * Revokes all active sessions by incrementing tokenVersion
+       */
+      logoutAll: async () => {
+        try {
+          const { authService } = await import('../services/authService');
+          await authService.logoutAll();
+        } catch (error) {
+          console.error('Logout all API call failed:', error);
+          // Proceed with local logout anyway
+        }
+
+        // Clear Zustand state
+        set({
+          isLoggedIn: false,
+          user: null,
+          role: null,
+          error: null,
+        });
       },
 
       /**

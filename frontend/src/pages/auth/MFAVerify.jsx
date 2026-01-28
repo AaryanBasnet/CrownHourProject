@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { mfaSchema } from '@utils/schemas';
 import { authService } from '@services';
 import { useAuthStore } from '@store/authStore';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 /**
  * MFA Verification Page
@@ -16,6 +17,7 @@ export const MFAVerify = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { setAuth } = useAuthStore();
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -47,6 +49,7 @@ export const MFAVerify = () => {
 
     try {
       // Re-submit login with MFA token
+      // Note: reCAPTCHA already verified in first login attempt
       const response = await authService.login({
         email,
         password,
@@ -95,7 +98,7 @@ export const MFAVerify = () => {
             Two-Factor Authentication
           </h2>
           <p className="mt-2 text-stone-500">
-            Enter the 6-digit code from your authenticator app
+            Enter your 6-digit code or 8-character backup code
           </p>
         </div>
 
@@ -121,17 +124,18 @@ export const MFAVerify = () => {
               {...register('mfaToken')}
               id="mfaToken"
               type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
+              maxLength={8}
               autoComplete="one-time-code"
-              className="w-full text-center text-2xl tracking-[0.5em] py-3 bg-white border border-stone-200 focus:border-crown-gold focus:ring-1 focus:ring-crown-gold outline-none transition-all font-mono text-crown-black placeholder-stone-300"
+              className="w-full text-center text-2xl tracking-[0.25em] py-3 bg-white border border-stone-200 focus:border-crown-gold focus:ring-1 focus:ring-crown-gold outline-none transition-all font-mono text-crown-black placeholder-stone-300 uppercase"
               placeholder="000000"
               autoFocus
             />
             {errors.mfaToken && (
               <p className="mt-2 text-sm text-red-500">{errors.mfaToken.message}</p>
             )}
+            <p className="mt-2 text-xs text-stone-400 text-center">
+              Enter 6 digits from your app or an 8-character backup code
+            </p>
           </div>
 
           {/* Submit Button */}
@@ -154,12 +158,15 @@ export const MFAVerify = () => {
         </form>
 
         {/* Help Text */}
-        <p className="mt-6 text-center text-sm text-stone-400">
-          Can't access your authenticator?{' '}
-          <a href="#" className="text-stone-600 font-medium hover:text-crown-gold transition-colors">
-            Contact Support
-          </a>
-        </p>
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded">
+          <p className="text-xs text-blue-800 mb-2 font-medium">
+            Lost access to your authenticator app?
+          </p>
+          <p className="text-xs text-blue-700">
+            Use one of the 8-character backup codes that were provided when you enabled 2FA.
+            Each backup code can only be used once.
+          </p>
+        </div>
       </motion.div>
     </div>
   );

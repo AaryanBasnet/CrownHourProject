@@ -23,6 +23,13 @@ export const authService = {
    */
   login: async (credentials) => {
     const response = await apiClient.post('/auth/login', credentials);
+
+    // Rotate CSRF Token if provided by backend (Max Security)
+    if (response.data?.csrfToken) {
+      apiClient.defaults.headers.common['x-csrf-token'] = response.data.csrfToken;
+      localStorage.setItem('csrf-token', response.data.csrfToken);
+    }
+
     return response.data;
   },
 
@@ -33,6 +40,16 @@ export const authService = {
    */
   logout: async () => {
     const response = await apiClient.post('/auth/logout');
+    return response.data;
+  },
+
+  /**
+   * Logout from all devices
+   * Revokes all active sessions by incrementing tokenVersion
+   * @returns {Promise}
+   */
+  logoutAll: async () => {
+    const response = await apiClient.post('/auth/logout-all');
     return response.data;
   },
 
@@ -92,6 +109,89 @@ export const authService = {
    */
   disableMFA: async (password) => {
     const response = await apiClient.post('/auth/mfa/disable', { password });
+    return response.data;
+  },
+
+  /**
+   * Get MFA Backup Codes
+   * @returns {Promise} Response with backup codes
+   */
+  getBackupCodes: async () => {
+    const response = await apiClient.get('/auth/mfa/backup-codes');
+    return response.data;
+  },
+
+  /**
+   * Regenerate MFA Backup Codes
+   * @param {string} password
+   * @returns {Promise} Response with new backup codes
+   */
+  regenerateBackupCodes: async (password) => {
+    const response = await apiClient.post('/auth/mfa/regenerate-backup-codes', { password });
+    return response.data;
+  },
+
+  /**
+   * Change Password
+   * @param {Object} data - { currentPassword, newPassword }
+   * @returns {Promise} Response
+   */
+  changePassword: async (data) => {
+    const response = await apiClient.put('/auth/password', data);
+    return response.data;
+  },
+
+  /**
+   * Forgot Password
+   * @param {string} email
+   * @returns {Promise} Response
+   */
+  forgotPassword: async (email) => {
+    const response = await apiClient.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  /**
+   * Reset Password
+   * @param {string} token
+   * @param {string} password
+   * @returns {Promise} Response
+   */
+  resetPassword: async (token, password) => {
+    const response = await apiClient.put(`/auth/reset-password/${token}`, { password });
+    return response.data;
+  },
+
+  /**
+   * Get fresh CSRF token
+   * @returns {Promise}
+   */
+  getCsrfToken: async () => {
+    const response = await apiClient.get('/csrf-token');
+    const { csrfToken } = response.data;
+
+    // Update axios defaults and storage
+    apiClient.defaults.headers.common['x-csrf-token'] = csrfToken;
+    localStorage.setItem('csrf-token', csrfToken);
+
+    return csrfToken;
+  },
+
+  /**
+   * Exchange OAuth Token for JWT
+   * Security: One-time token exchange pattern for sameSite: 'strict'
+   * @param {string} oauthToken - One-time OAuth token from callback
+   * @returns {Promise} Response with user data
+   */
+  exchangeOAuthToken: async (oauthToken) => {
+    const response = await apiClient.post('/auth/exchange-oauth-token', { oauthToken });
+
+    // Rotate CSRF Token if provided
+    if (response.data?.csrfToken) {
+      apiClient.defaults.headers.common['x-csrf-token'] = response.data.csrfToken;
+      localStorage.setItem('csrf-token', response.data.csrfToken);
+    }
+
     return response.data;
   },
 };
