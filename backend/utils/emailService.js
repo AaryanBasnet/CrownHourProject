@@ -110,7 +110,54 @@ const sendOtpEmail = async (to, otp) => {
     }
 };
 
+/**
+ * Send Password Reset Email
+ * @param {string} to - Recipient email
+ * @param {string} resetUrl - Full reset link
+ */
+const sendPasswordResetEmail = async (to, resetUrl) => {
+    if (!validateEmailConfig()) return;
+
+    const mailOptions = {
+        from: `"${process.env.MFA_ISSUER || 'CrownHour'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+        to,
+        subject: 'Reset Your Password - CrownHour',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+                <h1 style="color: #d4af37; text-align: center;">CrownHour</h1>
+                <div style="background-color: #f9f9f9; padding: 30px; border-radius: 8px;">
+                    <h2 style="margin-top: 0;">Reset Your Password</h2>
+                    <p>You requested a password reset. Please click the button below to set a new password:</p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${resetUrl}" style="background-color: #0c0c0c; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">RESET PASSWORD</a>
+                    </div>
+                    
+                    <p style="font-size: 14px; color: #666;">Or copy and paste this link into your browser:</p>
+                    <p style="font-size: 12px; color: #888; word-break: break-all;">${resetUrl}</p>
+                    
+                    <p style="font-size: 14px; margin-top: 30px;">This link will expire in 10 minutes.</p>
+                    <p style="font-size: 14px; margin-top: 10px;">If you didn't request this, please ignore this email.</p>
+                </div>
+                <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">
+                    &copy; ${new Date().getFullYear()} CrownHour. All rights reserved.
+                </div>
+            </div>
+        `,
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`📧 Password reset email sent: ${info.messageId}`);
+        return info;
+    } catch (error) {
+        console.error('❌ Error sending password reset email:', error);
+        throw new Error('Email sending failed');
+    }
+};
+
 module.exports = {
     sendVerificationEmail,
     sendOtpEmail,
+    sendPasswordResetEmail,
 };
