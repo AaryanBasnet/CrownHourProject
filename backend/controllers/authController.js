@@ -343,23 +343,24 @@ const login = async (req, res) => {
       // If TOTP fails, check if it's a backup code
       if (!isMFAValid) {
         console.log(`[MFA] TOTP failed, checking backup codes...`);
-        console.log(`[MFA] Looking for code: ${mfaToken.toUpperCase()}`);
 
-        // Log all backup codes for debugging (remove in production)
-        if (user.mfaBackupCodes) {
-          user.mfaBackupCodes.forEach((bc, idx) => {
-            console.log(
-              `[MFA] Backup code ${idx}: ${bc.code}, used: ${bc.used}`,
-            );
+        // Security: Ensure mfaToken is a string to prevent NoSQL injection
+        if (typeof mfaToken !== 'string') {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid MFA token format",
           });
         }
+
+        const mfaSearchCode = mfaToken.toUpperCase();
+        console.log(`[MFA] Looking for code: ${mfaSearchCode}`);
 
         // Security: Use atomic update to prevent race conditions
         // This ensures a backup code can only be used once even with concurrent requests
         const updatedUser = await User.findOneAndUpdate(
           {
             _id: user._id,
-            "mfaBackupCodes.code": mfaToken.toUpperCase(),
+            "mfaBackupCodes.code": mfaSearchCode,
             "mfaBackupCodes.used": false,
           },
           {
@@ -379,7 +380,7 @@ const login = async (req, res) => {
 
           // Find which code was used for logging
           const usedCodeIndex = updatedUser.mfaBackupCodes.findIndex(
-            (bc) => bc.code === mfaToken.toUpperCase() && bc.used,
+            (bc) => bc.code === mfaSearchCode && bc.used,
           );
 
           console.log(

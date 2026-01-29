@@ -137,13 +137,23 @@ export const Shop = () => {
 
   // Handle add to cart
   const handleAddToCart = useCallback(async (product) => {
-    const success = await addToCart(product, 1);
+    console.log('Shop: Adding to cart:', product._id, product.name);
+
+    // Get default variants if product has them
+    const defaultColor = product.variants?.colors?.find(c => c.inStock) || product.variants?.colors?.[0];
+    const defaultStrap = product.variants?.straps?.find(s => s.inStock) || product.variants?.straps?.[0];
+
+    const success = await addToCart(product, 1, {
+      color: defaultColor,
+      strap: defaultStrap
+    });
+
     if (success) {
       addToast(`${product.name} added to cart`, 'success');
     } else {
       addToast('Failed to add to cart', 'error');
     }
-  }, [addToast, addToCart]);
+  }, [addToCart, addToast]);
 
   // Handle add to wishlist
   const handleAddToWishlist = useCallback(async (product) => {

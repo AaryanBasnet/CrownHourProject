@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { ShopFilters, ShopToolbar, ProductCard, Pagination, SearchBar } from '@components/shop';
 import { useGenderProducts } from '@hooks';
 import { useToast } from '../context/ToastContext';
+import { useCartStore } from '@store/cartStore';
+import { useWishlistStore } from '@store/wishlistStore';
 import { Loader2, SlidersHorizontal, X } from 'lucide-react';
 
 /**
@@ -22,6 +24,8 @@ import { Loader2, SlidersHorizontal, X } from 'lucide-react';
 export const Men = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const { addToast } = useToast();
+    const { addToCart } = useCartStore();
+    const { toggleWishlist } = useWishlistStore();
     const productGridRef = useRef(null);
 
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -103,13 +107,29 @@ export const Men = () => {
         updateURL(newFilters);
     }, [filters, updateURL]);
 
-    const handleAddToCart = useCallback((product) => {
-        addToast(`${product.name} added to cart`, 'success');
-    }, [addToast]);
+    const handleAddToCart = useCallback(async (product) => {
+        console.log('Men: Adding to cart:', product._id, product.name);
 
-    const handleAddToWishlist = useCallback((product) => {
-        addToast(`${product.name} added to wishlist`, 'success');
-    }, [addToast]);
+        // Get default variants if product has them
+        const defaultColor = product.variants?.colors?.find(c => c.inStock) || product.variants?.colors?.[0];
+        const defaultStrap = product.variants?.straps?.find(s => s.inStock) || product.variants?.straps?.[0];
+
+        const success = await addToCart(product, 1, {
+            color: defaultColor,
+            strap: defaultStrap
+        });
+
+        if (success) {
+            addToast(`${product.name} added to cart`, 'success');
+        } else {
+            addToast('Failed to add to cart', 'error');
+        }
+    }, [addToCart, addToast]);
+
+    const handleAddToWishlist = useCallback(async (product) => {
+        await toggleWishlist(product);
+        addToast(`${product.name} wishlist updated`, 'success');
+    }, [toggleWishlist, addToast]);
 
     const handleClearFilters = useCallback(() => {
         const newFilters = { sort: '-createdAt', page: 1 };

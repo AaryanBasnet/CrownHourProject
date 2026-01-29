@@ -68,13 +68,15 @@ export const ProductDetail = () => {
         fetchRelated();
     }, [product?._id]);
 
-    // Set default selections
+    // Set default selections (prefer in-stock variants)
     useEffect(() => {
         if (product?.variants?.colors?.length > 0) {
-            setSelectedColor(product.variants.colors[0]);
+            const inStockColor = product.variants.colors.find(c => c.inStock);
+            setSelectedColor(inStockColor || product.variants.colors[0]);
         }
         if (product?.variants?.straps?.length > 0) {
-            setSelectedStrap(product.variants.straps[0]);
+            const inStockStrap = product.variants.straps.find(s => s.inStock);
+            setSelectedStrap(inStockStrap || product.variants.straps[0]);
         }
     }, [product]);
 

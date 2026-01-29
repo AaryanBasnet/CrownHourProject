@@ -30,7 +30,7 @@ const cartItemSchema = new mongoose.Schema({
         material: String,
         priceModifier: { type: Number, default: 0 },
     },
-}, { _id: false });
+});
 
 /**
  * Cart Model

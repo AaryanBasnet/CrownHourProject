@@ -129,7 +129,7 @@ export const ProductInfo = ({
             <div className="flex gap-3 mb-8">
                 <button
                     onClick={onAddToCart}
-                    disabled={product.stock === 0}
+                    disabled={product.stock === 0 || (selectedColor && !selectedColor.inStock) || (selectedStrap && !selectedStrap.inStock)}
                     className="flex-1 py-4 bg-[#1A1A1A] text-white text-sm uppercase tracking-[0.2em] font-medium hover:bg-[#C9A962] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#1A1A1A]"
                 >
                     {product.stock === 0 ? 'Out of Stock' : 'Add to Bag'}

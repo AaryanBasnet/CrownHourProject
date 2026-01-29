@@ -27,11 +27,13 @@ export const useAuthStore = create(
        * Called on app mount to verify session validity
        */
       checkAuth: async () => {
+        console.log('[AuthStore] checkAuth started');
         set({ isLoading: true, error: null });
         try {
           const response = await apiClient.get('/auth/me');
           const { user } = response.data.data;
 
+          console.log('[AuthStore] checkAuth SUCCESS - user:', user.email);
           set({
             isLoggedIn: true,
             user: {
@@ -51,6 +53,7 @@ export const useAuthStore = create(
           return true;
         } catch (error) {
           // If check-auth fails, user is not authenticated
+          console.log('[AuthStore] checkAuth FAILED:', error.response?.status, error.message);
           set({
             isLoggedIn: false,
             user: null,
