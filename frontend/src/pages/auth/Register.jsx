@@ -80,6 +80,11 @@ export const Register = () => {
     try {
       const response = await authService.verifyOtp(verificationEmail, otp);
 
+      // Rotate CSRF Token if provided by backend
+      if (response.csrfToken) {
+        localStorage.setItem('csrf-token', response.csrfToken);
+      }
+
       // Update auth store with user data
       if (response.data?.user) {
         setAuth(response.data.user);

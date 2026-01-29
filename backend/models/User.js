@@ -8,7 +8,9 @@ const { encrypt, decrypt } = require("../utils/encryption");
  *
  * Security Features:
  * - Password hashing with bcrypt (never store plain text)
- * - Field-level encryption for PII (phone numbers) using AES-256-GCM
+ * - Field-level encryption for PII using AES-256-GCM
+ *   - Phone numbers encrypted at rest
+ *   - MFA secrets encrypted at rest
  * - Token versioning for immediate session revocation
  * - MFA (Multi-Factor Authentication) support
  * - Login attempt tracking for brute-force protection
@@ -16,7 +18,7 @@ const { encrypt, decrypt } = require("../utils/encryption");
  * - Session management
  *
  * High-Level Enhancements:
- * 1. Field-Level Encryption: Phone numbers encrypted at rest
+ * 1. Field-Level Encryption: Phone numbers and MFA secrets encrypted at rest
  * 2. Token Versioning: Enables immediate JWT revocation
  */
 const userSchema = new mongoose.Schema(
@@ -87,7 +89,8 @@ const userSchema = new mongoose.Schema(
     },
     mfaSecret: {
       type: String,
-      // Security: Don't return MFA secret in queries
+      // Security: Encrypted at rest using AES-256-GCM (auto decrypt on read)
+      // Don't return MFA secret in queries
       select: false,
     },
     mfaBackupCodes: [
@@ -189,6 +192,13 @@ userSchema.pre("save", async function (next) {
     if (this.isModified("phone") && this.phone) {
       this.phone = encrypt(this.phone);
     }
+
+    // Security: Encrypt MFA secret if modified
+    // MFA secrets must be encrypted at rest but recoverable for TOTP verification
+    if (this.isModified("mfaSecret") && this.mfaSecret) {
+      this.mfaSecret = encrypt(this.mfaSecret);
+    }
+
     next();
   } catch (error) {
     console.error("Encryption error:", error);
@@ -204,6 +214,11 @@ userSchema.post("init", function (doc) {
     if (doc.phone) {
       doc.phone = decrypt(doc.phone);
     }
+
+    // Security: Decrypt MFA secret after loading from DB
+    if (doc.mfaSecret) {
+      doc.mfaSecret = decrypt(doc.mfaSecret);
+    }
   } catch (error) {
     console.error("Decryption error:", error);
     // Don't fail the query, just log the error
@@ -212,9 +227,16 @@ userSchema.post("init", function (doc) {
 
 // Security: Decrypt PII after findOne operations
 userSchema.post("findOne", function (doc) {
-  if (doc && doc.phone) {
+  if (doc) {
     try {
-      doc.phone = decrypt(doc.phone);
+      if (doc.phone) {
+        doc.phone = decrypt(doc.phone);
+      }
+
+      // Security: Decrypt MFA secret after findOne
+      if (doc.mfaSecret) {
+        doc.mfaSecret = decrypt(doc.mfaSecret);
+      }
     } catch (error) {
       console.error("Decryption error:", error);
     }

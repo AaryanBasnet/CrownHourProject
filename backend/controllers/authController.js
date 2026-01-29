@@ -1082,9 +1082,6 @@ const verifyRegistrationOtp = async (req, res) => {
     user.verificationOTP = undefined;
     user.verificationOTPExpires = undefined;
 
-    // Automatically login the user after verification (optional, but good UX)
-    // We already have the user object.
-
     await user.save();
 
     await logAuth("email_verified", {
@@ -1095,31 +1092,57 @@ const verifyRegistrationOtp = async (req, res) => {
       status: "success",
     });
 
-    // Generate Token
-    const token = generateToken(user);
+    // Security: Initialize session for idle timeout tracking
+    // Regenerate session ID to prevent session fixation attacks
+    if (req.session) {
+      req.session.regenerate((err) => {
+        if (err) {
+          return res
+            .status(500)
+            .json({ success: false, message: "Auth failed" });
+        }
 
-    // Set cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 3600000, // 1 hour
-    });
+        // Set session data in the NEW session
+        req.session.userId = user._id.toString();
+        req.session.email = user.email;
+        req.session.loginTime = new Date().toISOString();
+        req.session.lastActivity = new Date().toISOString();
 
-    res.status(200).json({
-      success: true,
-      message: "Email verified successfully.",
-      data: {
-        user: {
-          id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role.name,
-        },
-        token,
-      },
-    });
+        // Rotate CSRF Token for the new session ID
+        const newCsrfToken = generateCsrfToken(req, res);
+
+        // Generate JWT token
+        const token = generateToken(user);
+
+        // Security: Set token in HTTP-Only cookie
+        res.cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          path: "/",
+          maxAge: 60 * 60 * 1000, // 1 hour (matches JWT expiry)
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: "Email verified successfully.",
+          csrfToken: newCsrfToken, // Send new token to frontend for rotation
+          data: {
+            user: {
+              id: user._id,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              role: user.role.name,
+            },
+            token,
+          },
+        });
+      });
+    } else {
+      // Fallback if session middleware is missing (shouldn't happen)
+      return res.status(500).json({ success: false, message: "Session error" });
+    }
   } catch (error) {
     console.error("Email verification error:", error);
     res.status(500).json({
